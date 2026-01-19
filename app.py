@@ -5,66 +5,66 @@ import gspread
 import re
 from oauth2client.service_account import ServiceAccountCredentials
 
-# ======================================================
+# ===============================
 # PAGE CONFIG
-# ======================================================
+# ===============================
 st.set_page_config(
     page_title="Manohar Chai – Franchise Distance Tool",
     layout="wide"
 )
 
-# ======================================================
-# CLEAN CSS – NO EXTRA GAP
-# ======================================================
+# ===============================
+# GLOBAL CSS (GAP + UI FIX)
+# ===============================
 st.markdown("""
 <style>
+
+/* REMOVE TOP EMPTY STREAMLIT BLOCK */
+div[data-testid="stVerticalBlock"]:first-child {
+    display: none;
+}
+
+/* PAGE WIDTH & TOP PADDING */
 .block-container {
     max-width: 1100px;
-    padding-top: 0.0rem;
+    padding-top: 0.5rem;
 }
 
 /* HEADER */
 .mc-header {
     display: flex;
     align-items: center;
-    gap: 5px;
-    margin-bottom: 16px;
+    gap: 14px;
+    margin-bottom: 20px;
 }
 
 /* LOGO */
 .mc-logo img {
     height: 56px;
-    display: block;
 }
 
 /* TITLE */
 .mc-title {
-    font-size: 28px;
+    font-size: 30px;
     font-weight: 900;
     line-height: 1.1;
 }
-.mc-title span {
+.mc-title .red {
     color: #b71c1c;
 }
 .mc-sub {
     font-size: 13px;
     color: #666;
-    margin-top: 2px;
 }
 
 /* CARD */
 .mc-card {
     background: #ffffff;
-    padding: 28px;
+    padding: 26px;
     border-radius: 16px;
     box-shadow: 0 8px 22px rgba(0,0,0,0.08);
     max-width: 760px;
-    margin: 24px auto 40px auto;  /* 👈 NO BIG GAP */
-}
-
-/* INPUT */
-input {
-    font-size: 16px !important;
+    margin: 0 auto 40px auto;
 }
 
 /* BUTTON */
@@ -93,24 +93,24 @@ input {
 </style>
 """, unsafe_allow_html=True)
 
-# ======================================================
-# HEADER (TIGHT & ALIGNED)
-# ======================================================
+# ===============================
+# HEADER
+# ===============================
 st.markdown("""
 <div class="mc-header">
     <div class="mc-logo">
         <img src="https://raw.githubusercontent.com/manoharamruttulya-wq/franchise-distance-calculator/main/ManoharLogo_Social.png">
     </div>
     <div>
-        <div class="mc-title"><span>MANOHAR</span> CHAI</div>
+        <div class="mc-title"><span class="red">MANOHAR</span> CHAI</div>
         <div class="mc-sub">Franchise Distance Calculator · Internal Office Use Only</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
 
-# ======================================================
-# INPUT CARD (IMMEDIATELY BELOW HEADER)
-# ======================================================
+# ===============================
+# INPUT CARD
+# ===============================
 st.markdown('<div class="mc-card">', unsafe_allow_html=True)
 
 st.subheader("📍 Enter Location")
@@ -124,26 +124,31 @@ run = st.button("🔍 Calculate Distance", use_container_width=True)
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-# ======================================================
-# INPUT PARSER
-# ======================================================
+# ===============================
+# HELPERS
+# ===============================
 def extract_lat_lng(text):
     if not text:
         return None, None
-
     m = re.search(r'(-?\d+\.\d+),\s*(-?\d+\.\d+)', text)
     if m:
         return float(m.group(1)), float(m.group(2))
-
     m = re.search(r'@(-?\d+\.\d+),(-?\d+\.\d+)', text)
     if m:
         return float(m.group(1)), float(m.group(2))
-
     return None, None
 
-# ======================================================
+def haversine(lat1, lon1, lat2, lon2):
+    R = 6371
+    lat1, lon1, lat2, lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+    a = math.sin(dlat/2)**2 + math.cos(lat1)*math.cos(lat2)*math.sin(dlon/2)**2
+    return 2 * R * math.asin(math.sqrt(a))
+
+# ===============================
 # GOOGLE SHEET AUTH
-# ======================================================
+# ===============================
 scope = [
     "https://spreadsheets.google.com/feeds",
     "https://www.googleapis.com/auth/drive"
@@ -165,15 +170,15 @@ creds_dict = {
 creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 gc = gspread.authorize(creds)
 
-# ======================================================
+# ===============================
 # LOAD SHEET
-# ======================================================
+# ===============================
 sheet = gc.open_by_key("1VNVTYE13BEJ2-P0klp5vI7XdPRd0poZujIyNQuk-nms")
 df = pd.DataFrame(sheet.worksheet("Franchise_Summary").get_all_records())
 
-# ======================================================
-# EXTRACT LAT/LONG
-# ======================================================
+# ===============================
+# LAT/LONG EXTRACTION
+# ===============================
 for col in df.columns:
     if df[col].astype(str).str.contains(r'^-?\d+\.\d+,\s*-?\d+\.\d+$').any():
         sp = df[col].astype(str).str.split(",", expand=True)
@@ -182,23 +187,11 @@ for col in df.columns:
         df["Lat_Long"] = df[col]
         break
 
-# ======================================================
-# DISTANCE
-# ======================================================
-def haversine(lat1, lon1, lat2, lon2):
-    R = 6371
-    lat1, lon1, lat2, lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
-    dlat = lat2 - lat1
-    dlon = lon2 - lon1
-    a = math.sin(dlat/2)**2 + math.cos(lat1)*math.cos(lat2)*math.sin(dlon/2)**2
-    return 2 * R * math.asin(math.sqrt(a))
-
-# ======================================================
-# MAIN
-# ======================================================
+# ===============================
+# MAIN ACTION
+# ===============================
 if run:
     ulat, ulng = extract_lat_lng(location_input)
-
     if ulat is None:
         st.error("❌ Invalid location format")
         st.stop()
@@ -207,10 +200,8 @@ if run:
     for _, r in df.iterrows():
         if pd.isna(r["Latitude"]) or pd.isna(r["Longitude"]):
             continue
-
         km = haversine(ulat, ulng, r["Latitude"], r["Longitude"])
         url = f"https://www.google.com/maps/dir/?api=1&origin={ulat},{ulng}&destination={r['Lat_Long']}"
-
         rows.append({
             "PARTY NAME": r.get("PARTY NAME", ""),
             "ADDRESS": r.get("ADDRESS", ""),
@@ -221,7 +212,6 @@ if run:
     out = pd.DataFrame(rows).sort_values("KM")
 
     st.subheader("📊 All Outlet Distances (Nearest → Farthest)")
-
     st.dataframe(
         out,
         use_container_width=True,

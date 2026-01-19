@@ -2,16 +2,37 @@ import streamlit as st
 import math
 import pandas as pd
 import gspread
+import re
 from oauth2client.service_account import ServiceAccountCredentials
 
 # ===================== UI =====================
 st.set_page_config(page_title="Franchise Distance Calculator", layout="wide")
 st.title("📍 Franchise Distance Calculator")
 
-st.subheader("Enter New Location")
-user_lat = st.number_input("Latitude", format="%.6f")
-user_lng = st.number_input("Longitude", format="%.6f")
+st.subheader("Enter Location")
+location_input = st.text_input(
+    "Paste Lat,Long OR Google Maps link",
+    placeholder="22.05762,78.93807  OR  https://maps.google.com/..."
+)
+
 run = st.button("Calculate Distance")
+
+# ===================== PARSE LAT/LONG =====================
+def extract_lat_lng_from_input(text):
+    if not text:
+        return None, None
+
+    # Case 1: direct lat,long
+    match = re.search(r'(-?\d+\.\d+),\s*(-?\d+\.\d+)', text)
+    if match:
+        return float(match.group(1)), float(match.group(2))
+
+    # Case 2: google maps link
+    match = re.search(r'@(-?\d+\.\d+),(-?\d+\.\d+)', text)
+    if match:
+        return float(match.group(1)), float(match.group(2))
+
+    return None, None
 
 # ===================== GOOGLE AUTH =====================
 scope = [
@@ -36,9 +57,7 @@ creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 gc = gspread.authorize(creds)
 
 # ===================== LOAD SHEET =====================
-SHEET_ID = "1VNVTYE13BEJ2-P0klp5vI7XdPRd0poZujIyNQuk-nms"
-sheet = gc.open_by_key(SHEET_ID)
-
+sheet = gc.open_by_key("1VNVTYE13BEJ2-P0klp5vI7XdPRd0poZujIyNQuk-nms")
 franchise_df = pd.DataFrame(
     sheet.worksheet("Franchise_Summary").get_all_records()
 )
@@ -65,11 +84,12 @@ def haversine(lat1, lon1, lat2, lon2):
     a = math.sin(dlat/2)**2 + math.cos(lat1)*math.cos(lat2)*math.sin(dlon/2)**2
     return 2 * R * math.asin(math.sqrt(a))
 
-# ===================== MAIN LOGIC =====================
+# ===================== MAIN =====================
 if run:
+    user_lat, user_lng = extract_lat_lng_from_input(location_input)
 
-    if user_lat == 0 or user_lng == 0:
-        st.error("Please enter valid Latitude & Longitude")
+    if user_lat is None or user_lng is None:
+        st.error("❌ Invalid input. Paste Lat,Long or Google Maps link.")
         st.stop()
 
     results = []
@@ -78,10 +98,7 @@ if run:
         if pd.isna(fr["Latitude"]) or pd.isna(fr["Longitude"]):
             continue
 
-        dist = haversine(
-            user_lat, user_lng,
-            fr["Latitude"], fr["Longitude"]
-        )
+        dist = haversine(user_lat, user_lng, fr["Latitude"], fr["Longitude"])
 
         map_url = (
             "https://www.google.com/maps/dir/?api=1"
@@ -94,37 +111,24 @@ if run:
             "PARTY NAME": fr.get("PARTY NAME", ""),
             "ADDRESS": fr.get("ADDRESS", ""),
             "KM": round(dist, 2),
-            "VIEW ROUTE": map_url,
+            "VIEW ROUTE": f"[View Route]({map_url})",
             "LAT_LONG": fr["Lat_Long"]
         })
 
-    # ALL OUTLETS SORTED
     result_df = pd.DataFrame(results).sort_values("KM").reset_index(drop=True)
-
-    # RANK TAG
-    def rank_label(i):
-        if i == 0: return "1st Nearest"
-        if i == 1: return "2nd Nearest"
-        if i == 2: return "3rd Nearest"
-        if i == 3: return "4th Nearest"
-        return ""
-
-    result_df["RANK"] = [rank_label(i) for i in range(len(result_df))]
 
     # ===================== OUTPUT =====================
     st.subheader("📊 All Outlet Distances (Nearest → Farthest)")
-    st.dataframe(
-        result_df.drop(columns=["LAT_LONG"]),
-        use_container_width=True
+    st.markdown(
+        result_df.drop(columns=["LAT_LONG"]).to_markdown(index=False),
+        unsafe_allow_html=True
     )
 
     # ===================== 1–4 COMBINED ROUTE =====================
     if len(result_df) >= 4:
         origin = f"{user_lat},{user_lng}"
         destination = result_df.iloc[0]["LAT_LONG"]
-        waypoints = "|".join(
-            result_df.iloc[1:4]["LAT_LONG"].tolist()
-        )
+        waypoints = "|".join(result_df.iloc[1:4]["LAT_LONG"].tolist())
 
         combined_map = (
             "https://www.google.com/maps/dir/?api=1"
@@ -135,12 +139,12 @@ if run:
         )
 
         st.subheader("🗺️ 1–4 Combined Route")
-        st.markdown(f"[View 1st–4th Combined Route]({combined_map})")
+        st.markdown(f"[View Combined Route]({combined_map})")
 
-    # ===================== CSV DOWNLOAD =====================
+    # ===================== CSV =====================
     csv = result_df.drop(columns=["LAT_LONG"]).to_csv(index=False).encode("utf-8")
     st.download_button(
-        "⬇️ Download Full Distance Report",
+        "⬇️ Download Distance Report",
         csv,
         "all_outlet_distance_report.csv",
         "text/csv"

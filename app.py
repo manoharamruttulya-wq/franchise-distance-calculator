@@ -20,7 +20,7 @@ st.markdown("""
 <style>
 .block-container {
     max-width: 1100px;
-    padding-top: 0.8rem;
+    padding-top: 0.0rem;
 }
 
 /* HEADER */

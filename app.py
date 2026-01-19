@@ -10,7 +10,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 # ===============================
 st.set_page_config(
     page_title="Manohar Chai – Franchise Distance Tool",
-    layout="wide"
+    layout="centre"
 )
 
 # ===============================

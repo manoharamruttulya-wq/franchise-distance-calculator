@@ -73,7 +73,7 @@ st.markdown("""
 # ===============================
 # 🔽 1 CM TOP SPACER (IMPORTANT)
 # ===============================
-st.markdown("<div style='height:38px'></div>", unsafe_allow_html=True)
+st.markdown("<div style='height:45px'></div>", unsafe_allow_html=True)
 
 # ===============================
 # HEADER

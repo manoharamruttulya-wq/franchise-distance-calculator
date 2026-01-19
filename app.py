@@ -14,52 +14,49 @@ st.set_page_config(
 )
 
 # ======================================================
-# GLOBAL CSS (LAYOUT + MOBILE FIX)
+# GLOBAL CSS (WHITE CLEAN UI)
 # ======================================================
 st.markdown("""
 <style>
-/* Remove top padding */
 .block-container {
-    padding-top: 0.6rem;
+    padding-top: 1.8rem;
+    max-width: 1100px;
 }
 
 /* HEADER */
 .mc-header {
-    width: 100%;
-    background: #b71c1c;
-    border-radius: 18px;
-    padding: 18px 22px;
     display: flex;
     align-items: center;
-    gap: 18px;
-    margin-bottom: 28px;
+    gap: 16px;
+    margin-bottom: 30px;
 }
 
 /* LOGO */
 .mc-logo img {
-    height: 60px;
+    height: 58px;
 }
 
-/* BRAND TEXT */
+/* TITLE */
 .mc-title {
-    color: white;
-    font-size: 28px;
+    font-size: 30px;
     font-weight: 900;
-    letter-spacing: 1px;
+}
+.mc-title span {
+    color: #b71c1c;
 }
 .mc-sub {
-    color: #ffebee;
     font-size: 13px;
+    color: #666;
     margin-top: 2px;
 }
 
 /* CARD */
 .mc-card {
     background: #ffffff;
-    padding: 26px;
-    border-radius: 16px;
-    box-shadow: 0 6px 18px rgba(0,0,0,0.08);
-    max-width: 760px;
+    padding: 28px;
+    border-radius: 18px;
+    box-shadow: 0 8px 22px rgba(0,0,0,0.08);
+    max-width: 780px;
     margin: auto;
 }
 
@@ -88,14 +85,14 @@ input {
         text-align: center;
     }
     .mc-logo img {
-        height: 54px;
+        height: 52px;
     }
 }
 </style>
 """, unsafe_allow_html=True)
 
 # ======================================================
-# HEADER (FULL WIDTH – FIXED)
+# HEADER (WHITE BACKGROUND)
 # ======================================================
 st.markdown("""
 <div class="mc-header">
@@ -103,15 +100,17 @@ st.markdown("""
         <img src="https://raw.githubusercontent.com/manoharamruttulya-wq/franchise-distance-calculator/main/ManoharLogo_Social.png">
     </div>
     <div>
-        <div class="mc-title">MANOHAR CHAI</div>
+        <div class="mc-title"><span>MANOHAR</span> CHAI</div>
         <div class="mc-sub">Franchise Distance Calculator · Internal Office Use Only</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
 
 # ======================================================
-# INPUT CARD
+# INPUT CARD (SHIFTED DOWN)
 # ======================================================
+st.markdown("<br><br>", unsafe_allow_html=True)
+
 st.markdown('<div class="mc-card">', unsafe_allow_html=True)
 
 st.subheader("📍 Enter Location")
@@ -177,9 +176,9 @@ df = pd.DataFrame(sheet.worksheet("Franchise_Summary").get_all_records())
 # ======================================================
 for col in df.columns:
     if df[col].astype(str).str.contains(r'^-?\d+\.\d+,\s*-?\d+\.\d+$').any():
-        split = df[col].astype(str).str.split(",", expand=True)
-        df["Latitude"] = pd.to_numeric(split[0], errors="coerce")
-        df["Longitude"] = pd.to_numeric(split[1], errors="coerce")
+        sp = df[col].astype(str).str.split(",", expand=True)
+        df["Latitude"] = pd.to_numeric(sp[0], errors="coerce")
+        df["Longitude"] = pd.to_numeric(sp[1], errors="coerce")
         df["Lat_Long"] = df[col]
         break
 

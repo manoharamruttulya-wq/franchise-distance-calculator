@@ -14,20 +14,20 @@ st.set_page_config(
 )
 
 # ===============================
-# SAFE CSS (NO HIDING)
+# CSS (SAFE + CLEAN)
 # ===============================
 st.markdown("""
 <style>
 .block-container {
     max-width: 1100px;
-    padding-top: 1.5rem;
+    padding-top: 1rem;
 }
 
+/* HEADER */
 .mc-header {
     display: flex;
     align-items: center;
     gap: 14px;
-    margin-bottom: 32px;
 }
 
 .mc-logo img {
@@ -47,15 +47,7 @@ st.markdown("""
     color: #666;
 }
 
-.mc-card {
-    background: #ffffff;
-    padding: 28px;
-    border-radius: 16px;
-    box-shadow: 0 8px 22px rgba(0,0,0,0.08);
-    max-width: 760px;
-    margin: 0 auto 40px auto;
-}
-
+/* BUTTON */
 .stButton button {
     background-color: #b71c1c;
     color: white;
@@ -68,6 +60,7 @@ st.markdown("""
     background-color: #8e0000;
 }
 
+/* MOBILE */
 @media (max-width: 768px) {
     .mc-header {
         flex-direction: column;
@@ -76,6 +69,11 @@ st.markdown("""
 }
 </style>
 """, unsafe_allow_html=True)
+
+# ===============================
+# 🔽 1 CM TOP SPACER (IMPORTANT)
+# ===============================
+st.markdown("<div style='height:38px'></div>", unsafe_allow_html=True)
 
 # ===============================
 # HEADER
@@ -91,8 +89,23 @@ st.markdown("""
     </div>
 </div>
 """, unsafe_allow_html=True)
-st.markdown("<div style='height:40px'></div>", unsafe_allow_html=True)
 
+# ===============================
+# SPACING AFTER HEADER
+# ===============================
+st.markdown("<div style='height:48px'></div>", unsafe_allow_html=True)
+
+# ===============================
+# INPUT SECTION (NO CARD / NO RECTANGLE)
+# ===============================
+st.subheader("📍 Enter Location")
+
+location_input = st.text_input(
+    "Paste Lat,Long OR Google Maps link",
+    placeholder="22.05762,78.93807  OR  https://maps.google.com/..."
+)
+
+run = st.button("🔍 Calculate Distance", use_container_width=True)
 
 # ===============================
 # HELPERS

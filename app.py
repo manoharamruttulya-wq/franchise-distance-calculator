@@ -8,6 +8,11 @@ from oauth2client.service_account import ServiceAccountCredentials
 # ======================================================
 # 🔐 EMAIL ACCESS CONTROL (OFFICE ONLY)
 # ======================================================
+st.set_page_config(
+    page_title="Manohar Chai – Franchise Distance Tool",
+    layout="wide"
+)
+
 user = st.experimental_user
 
 if not user or not user.email:
@@ -23,48 +28,33 @@ if user.email not in allowed_emails:
     st.stop()
 
 # ======================================================
-# 🎨 BRAND + MOBILE UI (MANOHAR CHAI – RED THEME)
+# 🎨 BRAND + MOBILE UI (RED THEME)
 # ======================================================
-st.set_page_config(
-    page_title="Manohar Chai – Franchise Distance Tool",
-    layout="wide"
-)
-
 st.markdown("""
 <style>
 .block-container {
     padding-top: 0.5rem;
     padding-bottom: 1rem;
 }
-
-/* Brand box */
 .brand-box {
     background: #b71c1c;
     padding: 14px;
     border-radius: 14px;
     margin-bottom: 15px;
 }
-
-/* Brand text */
 .brand-title {
     color: white;
     font-size: 26px;
     font-weight: 900;
     letter-spacing: 1px;
 }
-
 .brand-sub {
     color: #ffebee;
     font-size: 13px;
-    margin-top: 2px;
 }
-
-/* Mobile input */
 input {
     font-size: 16px !important;
 }
-
-/* Button */
 .stButton button {
     background-color: #b71c1c;
     color: white;
@@ -72,7 +62,6 @@ input {
     border-radius: 10px;
     height: 48px;
 }
-
 .stButton button:hover {
     background-color: #8e0000;
 }
@@ -80,7 +69,7 @@ input {
 """, unsafe_allow_html=True)
 
 # ======================================================
-# ☕ BRAND HEADER (LOGO + TEXT)
+# ☕ HEADER (LOGO + BRAND)
 # ======================================================
 col1, col2 = st.columns([1, 3])
 
@@ -98,7 +87,7 @@ with col2:
     """, unsafe_allow_html=True)
 
 # ======================================================
-# 📍 USER INPUT (LAT/LONG OR GOOGLE MAPS LINK)
+# 📍 INPUT
 # ======================================================
 st.subheader("📍 Enter Location")
 
@@ -116,12 +105,10 @@ def extract_lat_lng(text):
     if not text:
         return None, None
 
-    # Case 1: lat,long
     m = re.search(r'(-?\d+\.\d+),\s*(-?\d+\.\d+)', text)
     if m:
         return float(m.group(1)), float(m.group(2))
 
-    # Case 2: Google Maps link
     m = re.search(r'@(-?\d+\.\d+),(-?\d+\.\d+)', text)
     if m:
         return float(m.group(1)), float(m.group(2))
@@ -129,7 +116,7 @@ def extract_lat_lng(text):
     return None, None
 
 # ======================================================
-# 🔐 GOOGLE SHEET AUTH (PRIVATE)
+# 🔐 GOOGLE SHEET AUTH
 # ======================================================
 scope = [
     "https://spreadsheets.google.com/feeds",
@@ -153,7 +140,7 @@ creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 gc = gspread.authorize(creds)
 
 # ======================================================
-# 📊 LOAD GOOGLE SHEET
+# 📊 LOAD SHEET
 # ======================================================
 SHEET_ID = "1VNVTYE13BEJ2-P0klp5vI7XdPRd0poZujIyNQuk-nms"
 sheet = gc.open_by_key(SHEET_ID)
@@ -163,7 +150,7 @@ franchise_df = pd.DataFrame(
 )
 
 # ======================================================
-# 📍 LAT/LONG FROM SHEET
+# 📍 EXTRACT LAT/LONG FROM SHEET
 # ======================================================
 def extract_lat_lon(df):
     for col in df.columns:
@@ -178,7 +165,7 @@ def extract_lat_lon(df):
 franchise_df = extract_lat_lon(franchise_df)
 
 # ======================================================
-# 📐 HAVERSINE DISTANCE
+# 📐 HAVERSINE
 # ======================================================
 def haversine(lat1, lon1, lat2, lon2):
     R = 6371
@@ -219,3 +206,54 @@ if run:
             "KM": round(dist, 2),
             "VIEW ROUTE": map_url,
             "LAT_LONG": fr["Lat_Long"]
+        })
+
+    result_df = pd.DataFrame(results).sort_values("KM").reset_index(drop=True)
+
+    # ==================================================
+    # 📊 OUTPUT TABLE
+    # ==================================================
+    st.subheader("📊 All Outlet Distances (Nearest → Farthest)")
+
+    st.dataframe(
+        result_df.drop(columns=["LAT_LONG"]),
+        use_container_width=True,
+        height=420,
+        column_config={
+            "VIEW ROUTE": st.column_config.LinkColumn(
+                "MAP",
+                display_text="View Route"
+            )
+        }
+    )
+
+    # ==================================================
+    # 🗺️ 1–4 COMBINED ROUTE
+    # ==================================================
+    if len(result_df) >= 4:
+        origin = f"{user_lat},{user_lng}"
+        destination = result_df.iloc[0]["LAT_LONG"]
+        waypoints = "|".join(result_df.iloc[1:4]["LAT_LONG"].tolist())
+
+        combined_map = (
+            "https://www.google.com/maps/dir/?api=1"
+            f"&origin={origin}"
+            f"&destination={destination}"
+            f"&waypoints={waypoints}"
+            "&travelmode=walking"
+        )
+
+        st.subheader("🗺️ 1–4 Combined Route")
+        st.markdown(f"[View Combined Route]({combined_map})")
+
+    # ==================================================
+    # 📥 CSV DOWNLOAD
+    # ==================================================
+    csv = result_df.drop(columns=["LAT_LONG"]).to_csv(index=False).encode("utf-8")
+
+    st.download_button(
+        "⬇️ Download Distance Report",
+        csv,
+        "manohar_chai_distance_report.csv",
+        "text/csv"
+    )

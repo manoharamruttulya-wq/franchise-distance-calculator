@@ -91,22 +91,8 @@ st.markdown("""
     </div>
 </div>
 """, unsafe_allow_html=True)
+st.markdown("<div style='height:40px'></div>", unsafe_allow_html=True)
 
-# ===============================
-# INPUT CARD
-# ===============================
-st.markdown('<div class="mc-card">', unsafe_allow_html=True)
-
-st.subheader("📍 Enter Location")
-
-location_input = st.text_input(
-    "Paste Lat,Long OR Google Maps link",
-    placeholder="22.05762,78.93807  OR  https://maps.google.com/..."
-)
-
-run = st.button("🔍 Calculate Distance", use_container_width=True)
-
-st.markdown('</div>', unsafe_allow_html=True)
 
 # ===============================
 # HELPERS

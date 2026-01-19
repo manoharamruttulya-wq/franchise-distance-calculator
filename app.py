@@ -14,26 +14,26 @@ st.set_page_config(
 )
 
 # ======================================================
-# GLOBAL CSS (WHITE CLEAN UI)
+# CLEAN WHITE UI + PROPER SPACING
 # ======================================================
 st.markdown("""
 <style>
 .block-container {
-    padding-top: 1.8rem;
     max-width: 1100px;
+    padding-top: 1.2rem;
 }
 
 /* HEADER */
 .mc-header {
     display: flex;
     align-items: center;
-    gap: 16px;
-    margin-bottom: 30px;
+    gap: 18px;
+    margin-bottom: 20px;
 }
 
 /* LOGO */
 .mc-logo img {
-    height: 58px;
+    height: 60px;
 }
 
 /* TITLE */
@@ -47,17 +47,16 @@ st.markdown("""
 .mc-sub {
     font-size: 13px;
     color: #666;
-    margin-top: 2px;
 }
 
 /* CARD */
 .mc-card {
     background: #ffffff;
-    padding: 28px;
+    padding: 30px;
     border-radius: 18px;
-    box-shadow: 0 8px 22px rgba(0,0,0,0.08);
-    max-width: 780px;
-    margin: auto;
+    box-shadow: 0 10px 26px rgba(0,0,0,0.1);
+    max-width: 760px;
+    margin: 80px auto 40px auto; /* 🔥 THIS IS THE FIX */
 }
 
 /* INPUT */
@@ -71,7 +70,7 @@ input {
     color: white;
     font-weight: 700;
     border-radius: 12px;
-    height: 52px;
+    height: 54px;
     font-size: 16px;
 }
 .stButton button:hover {
@@ -87,12 +86,15 @@ input {
     .mc-logo img {
         height: 52px;
     }
+    .mc-card {
+        margin-top: 60px;
+    }
 }
 </style>
 """, unsafe_allow_html=True)
 
 # ======================================================
-# HEADER (WHITE BACKGROUND)
+# HEADER
 # ======================================================
 st.markdown("""
 <div class="mc-header">
@@ -107,10 +109,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ======================================================
-# INPUT CARD (SHIFTED DOWN)
+# INPUT CARD (PROPERLY DOWN)
 # ======================================================
-st.markdown("<br><br>", unsafe_allow_html=True)
-
 st.markdown('<div class="mc-card">', unsafe_allow_html=True)
 
 st.subheader("📍 Enter Location")

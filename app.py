@@ -10,7 +10,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 # ===============================
 st.set_page_config(
     page_title="Manohar Chai – Franchise Distance Tool",
-    layout="centre"
+    layout="wide"
 )
 
 # ===============================
@@ -19,19 +19,19 @@ st.set_page_config(
 st.markdown("""
 <style>
 .block-container {
-    max-width: 1100px;
+    max-width: 0px;
     padding-top: 1.5rem;
 }
 
 .mc-header {
     display: flex;
     align-items: center;
-    gap: 50px;
-    margin-bottom: 50px;
+    gap: 100px;
+    margin-bottom: 100px;
 }
 
 .mc-logo img {
-    height: 56px;
+    height: 50px;
 }
 
 .mc-title {

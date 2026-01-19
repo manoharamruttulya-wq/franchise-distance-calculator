@@ -6,26 +6,12 @@ import re
 from oauth2client.service_account import ServiceAccountCredentials
 
 # ======================================================
-# 🔐 EMAIL ACCESS CONTROL (OFFICE ONLY)
+# 🎨 PAGE CONFIG
 # ======================================================
 st.set_page_config(
     page_title="Manohar Chai – Franchise Distance Tool",
     layout="wide"
 )
-
-user = st.experimental_user
-
-if not user or not user.email:
-    st.error("❌ Please sign in to continue.")
-    st.stop()
-
-allowed_emails = st.secrets["auth"]["allowed_emails"]
-
-if user.email not in allowed_emails:
-    st.error("🚫 Access Denied")
-    st.write("This tool is restricted to authorized Manohar Chai office emails only.")
-    st.write(f"Signed in as: {user.email}")
-    st.stop()
 
 # ======================================================
 # 🎨 BRAND + MOBILE UI (RED THEME)
@@ -105,10 +91,12 @@ def extract_lat_lng(text):
     if not text:
         return None, None
 
+    # lat,long
     m = re.search(r'(-?\d+\.\d+),\s*(-?\d+\.\d+)', text)
     if m:
         return float(m.group(1)), float(m.group(2))
 
+    # Google Maps link
     m = re.search(r'@(-?\d+\.\d+),(-?\d+\.\d+)', text)
     if m:
         return float(m.group(1)), float(m.group(2))
@@ -116,7 +104,7 @@ def extract_lat_lng(text):
     return None, None
 
 # ======================================================
-# 🔐 GOOGLE SHEET AUTH
+# 🔐 GOOGLE SHEET AUTH (SERVICE ACCOUNT)
 # ======================================================
 scope = [
     "https://spreadsheets.google.com/feeds",
@@ -140,7 +128,7 @@ creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 gc = gspread.authorize(creds)
 
 # ======================================================
-# 📊 LOAD SHEET
+# 📊 LOAD GOOGLE SHEET
 # ======================================================
 SHEET_ID = "1VNVTYE13BEJ2-P0klp5vI7XdPRd0poZujIyNQuk-nms"
 sheet = gc.open_by_key(SHEET_ID)
@@ -165,7 +153,7 @@ def extract_lat_lon(df):
 franchise_df = extract_lat_lon(franchise_df)
 
 # ======================================================
-# 📐 HAVERSINE
+# 📐 HAVERSINE DISTANCE
 # ======================================================
 def haversine(lat1, lon1, lat2, lon2):
     R = 6371

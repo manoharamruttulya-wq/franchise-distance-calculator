@@ -6,7 +6,7 @@ import re
 from oauth2client.service_account import ServiceAccountCredentials
 
 # ======================================================
-# 🎨 PAGE CONFIG
+# PAGE CONFIG
 # ======================================================
 st.set_page_config(
     page_title="Manohar Chai – Franchise Distance Tool",
@@ -14,67 +14,106 @@ st.set_page_config(
 )
 
 # ======================================================
-# 🎨 BRAND + MOBILE UI (RED THEME)
+# GLOBAL CSS (LAYOUT + MOBILE FIX)
 # ======================================================
 st.markdown("""
 <style>
+/* Remove top padding */
 .block-container {
-    padding-top: 0.5rem;
-    padding-bottom: 1rem;
+    padding-top: 0.6rem;
 }
-.brand-box {
+
+/* HEADER */
+.mc-header {
+    width: 100%;
     background: #b71c1c;
-    padding: 14px;
-    border-radius: 14px;
-    margin-bottom: 15px;
+    border-radius: 18px;
+    padding: 18px 22px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    margin-bottom: 28px;
 }
-.brand-title {
+
+/* LOGO */
+.mc-logo img {
+    height: 60px;
+}
+
+/* BRAND TEXT */
+.mc-title {
     color: white;
-    font-size: 26px;
+    font-size: 28px;
     font-weight: 900;
     letter-spacing: 1px;
 }
-.brand-sub {
+.mc-sub {
     color: #ffebee;
     font-size: 13px;
+    margin-top: 2px;
 }
+
+/* CARD */
+.mc-card {
+    background: #ffffff;
+    padding: 26px;
+    border-radius: 16px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+    max-width: 760px;
+    margin: auto;
+}
+
+/* INPUT */
 input {
     font-size: 16px !important;
 }
+
+/* BUTTON */
 .stButton button {
     background-color: #b71c1c;
     color: white;
-    font-weight: bold;
-    border-radius: 10px;
-    height: 48px;
+    font-weight: 700;
+    border-radius: 12px;
+    height: 52px;
+    font-size: 16px;
 }
 .stButton button:hover {
     background-color: #8e0000;
+}
+
+/* MOBILE */
+@media (max-width: 768px) {
+    .mc-header {
+        flex-direction: column;
+        text-align: center;
+    }
+    .mc-logo img {
+        height: 54px;
+    }
 }
 </style>
 """, unsafe_allow_html=True)
 
 # ======================================================
-# ☕ HEADER (LOGO + BRAND)
+# HEADER (FULL WIDTH – FIXED)
 # ======================================================
-col1, col2 = st.columns([1, 3])
-
-with col1:
-    st.image("ManoharLogo_Social.png", width=90)
-
-with col2:
-    st.markdown("""
-    <div class="brand-box">
-        <div class="brand-title">MANOHAR CHAI</div>
-        <div class="brand-sub">
-            Franchise Distance Calculator · Internal Office Use Only
-        </div>
+st.markdown("""
+<div class="mc-header">
+    <div class="mc-logo">
+        <img src="https://raw.githubusercontent.com/manoharamruttulya-wq/franchise-distance-calculator/main/ManoharLogo_Social.png">
     </div>
-    """, unsafe_allow_html=True)
+    <div>
+        <div class="mc-title">MANOHAR CHAI</div>
+        <div class="mc-sub">Franchise Distance Calculator · Internal Office Use Only</div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 # ======================================================
-# 📍 INPUT
+# INPUT CARD
 # ======================================================
+st.markdown('<div class="mc-card">', unsafe_allow_html=True)
+
 st.subheader("📍 Enter Location")
 
 location_input = st.text_input(
@@ -84,19 +123,19 @@ location_input = st.text_input(
 
 run = st.button("🔍 Calculate Distance", use_container_width=True)
 
+st.markdown('</div>', unsafe_allow_html=True)
+
 # ======================================================
-# 🧠 INPUT PARSER
+# INPUT PARSER
 # ======================================================
 def extract_lat_lng(text):
     if not text:
         return None, None
 
-    # lat,long
     m = re.search(r'(-?\d+\.\d+),\s*(-?\d+\.\d+)', text)
     if m:
         return float(m.group(1)), float(m.group(2))
 
-    # Google Maps link
     m = re.search(r'@(-?\d+\.\d+),(-?\d+\.\d+)', text)
     if m:
         return float(m.group(1)), float(m.group(2))
@@ -104,7 +143,7 @@ def extract_lat_lng(text):
     return None, None
 
 # ======================================================
-# 🔐 GOOGLE SHEET AUTH (SERVICE ACCOUNT)
+# GOOGLE SHEET AUTH
 # ======================================================
 scope = [
     "https://spreadsheets.google.com/feeds",
@@ -128,32 +167,24 @@ creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 gc = gspread.authorize(creds)
 
 # ======================================================
-# 📊 LOAD GOOGLE SHEET
+# LOAD SHEET
 # ======================================================
-SHEET_ID = "1VNVTYE13BEJ2-P0klp5vI7XdPRd0poZujIyNQuk-nms"
-sheet = gc.open_by_key(SHEET_ID)
-
-franchise_df = pd.DataFrame(
-    sheet.worksheet("Franchise_Summary").get_all_records()
-)
+sheet = gc.open_by_key("1VNVTYE13BEJ2-P0klp5vI7XdPRd0poZujIyNQuk-nms")
+df = pd.DataFrame(sheet.worksheet("Franchise_Summary").get_all_records())
 
 # ======================================================
-# 📍 EXTRACT LAT/LONG FROM SHEET
+# EXTRACT LAT/LONG
 # ======================================================
-def extract_lat_lon(df):
-    for col in df.columns:
-        if df[col].astype(str).str.contains(r'^-?\d+\.\d+,\s*-?\d+\.\d+$').any():
-            sp = df[col].astype(str).str.split(",", expand=True)
-            df["Latitude"] = pd.to_numeric(sp[0], errors="coerce")
-            df["Longitude"] = pd.to_numeric(sp[1], errors="coerce")
-            df["Lat_Long"] = df[col]
-            break
-    return df
-
-franchise_df = extract_lat_lon(franchise_df)
+for col in df.columns:
+    if df[col].astype(str).str.contains(r'^-?\d+\.\d+,\s*-?\d+\.\d+$').any():
+        split = df[col].astype(str).str.split(",", expand=True)
+        df["Latitude"] = pd.to_numeric(split[0], errors="coerce")
+        df["Longitude"] = pd.to_numeric(split[1], errors="coerce")
+        df["Lat_Long"] = df[col]
+        break
 
 # ======================================================
-# 📐 HAVERSINE DISTANCE
+# DISTANCE
 # ======================================================
 def haversine(lat1, lon1, lat2, lon2):
     R = 6371
@@ -164,84 +195,41 @@ def haversine(lat1, lon1, lat2, lon2):
     return 2 * R * math.asin(math.sqrt(a))
 
 # ======================================================
-# 🚀 MAIN LOGIC
+# MAIN
 # ======================================================
 if run:
-    user_lat, user_lng = extract_lat_lng(location_input)
+    ulat, ulng = extract_lat_lng(location_input)
 
-    if user_lat is None or user_lng is None:
-        st.error("❌ Invalid input. Paste Lat,Long or Google Maps link.")
+    if ulat is None:
+        st.error("❌ Invalid location format")
         st.stop()
 
-    results = []
-
-    for _, fr in franchise_df.iterrows():
-        if pd.isna(fr["Latitude"]) or pd.isna(fr["Longitude"]):
+    rows = []
+    for _, r in df.iterrows():
+        if pd.isna(r["Latitude"]) or pd.isna(r["Longitude"]):
             continue
 
-        dist = haversine(user_lat, user_lng, fr["Latitude"], fr["Longitude"])
+        km = haversine(ulat, ulng, r["Latitude"], r["Longitude"])
+        url = f"https://www.google.com/maps/dir/?api=1&origin={ulat},{ulng}&destination={r['Lat_Long']}"
 
-        map_url = (
-            "https://www.google.com/maps/dir/?api=1"
-            f"&origin={user_lat},{user_lng}"
-            f"&destination={fr['Lat_Long']}"
-            "&travelmode=walking"
-        )
-
-        results.append({
-            "PARTY NAME": fr.get("PARTY NAME", ""),
-            "ADDRESS": fr.get("ADDRESS", ""),
-            "KM": round(dist, 2),
-            "VIEW ROUTE": map_url,
-            "LAT_LONG": fr["Lat_Long"]
+        rows.append({
+            "PARTY NAME": r.get("PARTY NAME", ""),
+            "ADDRESS": r.get("ADDRESS", ""),
+            "KM": round(km, 2),
+            "VIEW ROUTE": url
         })
 
-    result_df = pd.DataFrame(results).sort_values("KM").reset_index(drop=True)
+    out = pd.DataFrame(rows).sort_values("KM")
 
-    # ==================================================
-    # 📊 OUTPUT TABLE
-    # ==================================================
     st.subheader("📊 All Outlet Distances (Nearest → Farthest)")
 
     st.dataframe(
-        result_df.drop(columns=["LAT_LONG"]),
+        out,
         use_container_width=True,
-        height=420,
         column_config={
             "VIEW ROUTE": st.column_config.LinkColumn(
                 "MAP",
                 display_text="View Route"
             )
         }
-    )
-
-    # ==================================================
-    # 🗺️ 1–4 COMBINED ROUTE
-    # ==================================================
-    if len(result_df) >= 4:
-        origin = f"{user_lat},{user_lng}"
-        destination = result_df.iloc[0]["LAT_LONG"]
-        waypoints = "|".join(result_df.iloc[1:4]["LAT_LONG"].tolist())
-
-        combined_map = (
-            "https://www.google.com/maps/dir/?api=1"
-            f"&origin={origin}"
-            f"&destination={destination}"
-            f"&waypoints={waypoints}"
-            "&travelmode=walking"
-        )
-
-        st.subheader("🗺️ 1–4 Combined Route")
-        st.markdown(f"[View Combined Route]({combined_map})")
-
-    # ==================================================
-    # 📥 CSV DOWNLOAD
-    # ==================================================
-    csv = result_df.drop(columns=["LAT_LONG"]).to_csv(index=False).encode("utf-8")
-
-    st.download_button(
-        "⬇️ Download Distance Report",
-        csv,
-        "manohar_chai_distance_report.csv",
-        "text/csv"
     )

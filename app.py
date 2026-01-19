@@ -17,20 +17,20 @@ location_input = st.text_input(
 
 run = st.button("Calculate Distance")
 
-# ===================== PARSE LAT/LONG =====================
-def extract_lat_lng_from_input(text):
+# ===================== INPUT PARSER =====================
+def extract_lat_lng(text):
     if not text:
         return None, None
 
-    # Case 1: direct lat,long
-    match = re.search(r'(-?\d+\.\d+),\s*(-?\d+\.\d+)', text)
-    if match:
-        return float(match.group(1)), float(match.group(2))
+    # Case 1: lat,long
+    m = re.search(r'(-?\d+\.\d+),\s*(-?\d+\.\d+)', text)
+    if m:
+        return float(m.group(1)), float(m.group(2))
 
-    # Case 2: google maps link
-    match = re.search(r'@(-?\d+\.\d+),(-?\d+\.\d+)', text)
-    if match:
-        return float(match.group(1)), float(match.group(2))
+    # Case 2: Google Maps link
+    m = re.search(r'@(-?\d+\.\d+),(-?\d+\.\d+)', text)
+    if m:
+        return float(m.group(1)), float(m.group(2))
 
     return None, None
 
@@ -57,18 +57,20 @@ creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 gc = gspread.authorize(creds)
 
 # ===================== LOAD SHEET =====================
-sheet = gc.open_by_key("1VNVTYE13BEJ2-P0klp5vI7XdPRd0poZujIyNQuk-nms")
+SHEET_ID = "1VNVTYE13BEJ2-P0klp5vI7XdPRd0poZujIyNQuk-nms"
+sheet = gc.open_by_key(SHEET_ID)
+
 franchise_df = pd.DataFrame(
     sheet.worksheet("Franchise_Summary").get_all_records()
 )
 
-# ===================== LAT/LONG EXTRACT =====================
+# ===================== LAT/LONG FROM SHEET =====================
 def extract_lat_lon(df):
     for col in df.columns:
         if df[col].astype(str).str.contains(r'^-?\d+\.\d+,\s*-?\d+\.\d+$').any():
-            split = df[col].astype(str).str.split(",", expand=True)
-            df["Latitude"] = pd.to_numeric(split[0], errors="coerce")
-            df["Longitude"] = pd.to_numeric(split[1], errors="coerce")
+            sp = df[col].astype(str).str.split(",", expand=True)
+            df["Latitude"] = pd.to_numeric(sp[0], errors="coerce")
+            df["Longitude"] = pd.to_numeric(sp[1], errors="coerce")
             df["Lat_Long"] = df[col]
             break
     return df
@@ -84,9 +86,9 @@ def haversine(lat1, lon1, lat2, lon2):
     a = math.sin(dlat/2)**2 + math.cos(lat1)*math.cos(lat2)*math.sin(dlon/2)**2
     return 2 * R * math.asin(math.sqrt(a))
 
-# ===================== MAIN =====================
+# ===================== MAIN LOGIC =====================
 if run:
-    user_lat, user_lng = extract_lat_lng_from_input(location_input)
+    user_lat, user_lng = extract_lat_lng(location_input)
 
     if user_lat is None or user_lng is None:
         st.error("❌ Invalid input. Paste Lat,Long or Google Maps link.")
@@ -111,17 +113,25 @@ if run:
             "PARTY NAME": fr.get("PARTY NAME", ""),
             "ADDRESS": fr.get("ADDRESS", ""),
             "KM": round(dist, 2),
-            "VIEW ROUTE": f"[View Route]({map_url})",
+            "VIEW ROUTE": map_url,
             "LAT_LONG": fr["Lat_Long"]
         })
 
+    # SORT NEAREST → FARTHEST
     result_df = pd.DataFrame(results).sort_values("KM").reset_index(drop=True)
 
-    # ===================== OUTPUT =====================
+    # ===================== TABLE OUTPUT =====================
     st.subheader("📊 All Outlet Distances (Nearest → Farthest)")
-    st.markdown(
-        result_df.drop(columns=["LAT_LONG"]).to_markdown(index=False),
-        unsafe_allow_html=True
+
+    st.dataframe(
+        result_df.drop(columns=["LAT_LONG"]),
+        use_container_width=True,
+        column_config={
+            "VIEW ROUTE": st.column_config.LinkColumn(
+                "VIEW ROUTE",
+                display_text="View Route"
+            )
+        }
     )
 
     # ===================== 1–4 COMBINED ROUTE =====================
@@ -141,7 +151,7 @@ if run:
         st.subheader("🗺️ 1–4 Combined Route")
         st.markdown(f"[View Combined Route]({combined_map})")
 
-    # ===================== CSV =====================
+    # ===================== CSV DOWNLOAD =====================
     csv = result_df.drop(columns=["LAT_LONG"]).to_csv(index=False).encode("utf-8")
     st.download_button(
         "⬇️ Download Distance Report",

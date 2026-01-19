@@ -27,7 +27,7 @@ st.markdown("""
 .mc-header {
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 5px;
     margin-bottom: 16px;
 }
 

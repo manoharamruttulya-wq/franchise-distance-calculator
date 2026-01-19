@@ -14,32 +14,34 @@ st.set_page_config(
 )
 
 # ======================================================
-# CLEAN WHITE UI + PROPER SPACING
+# CLEAN CSS – NO EXTRA GAP
 # ======================================================
 st.markdown("""
 <style>
 .block-container {
     max-width: 1100px;
-    padding-top: 1.2rem;
+    padding-top: 0.8rem;
 }
 
 /* HEADER */
 .mc-header {
     display: flex;
     align-items: center;
-    gap: 18px;
-    margin-bottom: 20px;
+    gap: 14px;
+    margin-bottom: 16px;
 }
 
 /* LOGO */
 .mc-logo img {
-    height: 60px;
+    height: 56px;
+    display: block;
 }
 
 /* TITLE */
 .mc-title {
-    font-size: 30px;
+    font-size: 28px;
     font-weight: 900;
+    line-height: 1.1;
 }
 .mc-title span {
     color: #b71c1c;
@@ -47,16 +49,17 @@ st.markdown("""
 .mc-sub {
     font-size: 13px;
     color: #666;
+    margin-top: 2px;
 }
 
 /* CARD */
 .mc-card {
     background: #ffffff;
-    padding: 30px;
-    border-radius: 18px;
-    box-shadow: 0 10px 26px rgba(0,0,0,0.1);
+    padding: 28px;
+    border-radius: 16px;
+    box-shadow: 0 8px 22px rgba(0,0,0,0.08);
     max-width: 760px;
-    margin: 80px auto 40px auto; /* 🔥 THIS IS THE FIX */
+    margin: 24px auto 40px auto;  /* 👈 NO BIG GAP */
 }
 
 /* INPUT */
@@ -70,7 +73,7 @@ input {
     color: white;
     font-weight: 700;
     border-radius: 12px;
-    height: 54px;
+    height: 52px;
     font-size: 16px;
 }
 .stButton button:hover {
@@ -86,15 +89,12 @@ input {
     .mc-logo img {
         height: 52px;
     }
-    .mc-card {
-        margin-top: 60px;
-    }
 }
 </style>
 """, unsafe_allow_html=True)
 
 # ======================================================
-# HEADER
+# HEADER (TIGHT & ALIGNED)
 # ======================================================
 st.markdown("""
 <div class="mc-header">
@@ -109,7 +109,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ======================================================
-# INPUT CARD (PROPERLY DOWN)
+# INPUT CARD (IMMEDIATELY BELOW HEADER)
 # ======================================================
 st.markdown('<div class="mc-card">', unsafe_allow_html=True)
 

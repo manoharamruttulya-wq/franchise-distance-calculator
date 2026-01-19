@@ -19,19 +19,19 @@ st.set_page_config(
 st.markdown("""
 <style>
 .block-container {
-    max-width: 0px;
+    max-width: 1100px;
     padding-top: 1.5rem;
 }
 
 .mc-header {
     display: flex;
     align-items: center;
-    gap: 100px;
-    margin-bottom: 100px;
+    gap: 14px;
+    margin-bottom: 32px;
 }
 
 .mc-logo img {
-    height: 50px;
+    height: 56px;
 }
 
 .mc-title {

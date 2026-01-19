@@ -26,8 +26,8 @@ st.markdown("""
 .mc-header {
     display: flex;
     align-items: center;
-    gap: 14px;
-    margin-bottom: 32px;
+    gap: 50px;
+    margin-bottom: 50px;
 }
 
 .mc-logo img {

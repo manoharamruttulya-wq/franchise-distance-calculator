@@ -15,7 +15,7 @@ st.set_page_config(
 )
 
 # ===============================
-# CSS (SAFE, NO BLANK)
+# CSS
 # ===============================
 st.markdown("""
 <style>
@@ -62,13 +62,10 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ===============================
-# 2 CM TOP SPACER
+# SPACING + HEADER
 # ===============================
 st.markdown("<div style='height:76px'></div>", unsafe_allow_html=True)
 
-# ===============================
-# HEADER
-# ===============================
 st.markdown("""
 <div class="mc-header">
     <div class="mc-logo">
@@ -102,7 +99,7 @@ def extract_lat_lng(text):
     if not text:
         return None, None
 
-    # Expand short links (maps.app.goo.gl)
+    # Expand short links
     if "maps.app.goo.gl" in text:
         try:
             r = requests.get(text, allow_redirects=True, timeout=10)
@@ -110,31 +107,23 @@ def extract_lat_lng(text):
         except:
             return None, None
 
-    # lat,long
-    m = re.search(r'(-?\d+\.\d+),\s*(-?\d+\.\d+)', text)
-    if m:
-        return float(m.group(1)), float(m.group(2))
+    patterns = [
+        r'(-?\d+\.\d+),\s*(-?\d+\.\d+)',
+        r'@(-?\d+\.\d+),(-?\d+\.\d+)',
+        r'[?&]ll=(-?\d+\.\d+),(-?\d+\.\d+)',
+        r'!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)'
+    ]
 
-    # @lat,long
-    m = re.search(r'@(-?\d+\.\d+),(-?\d+\.\d+)', text)
-    if m:
-        return float(m.group(1)), float(m.group(2))
-
-    # ll=lat,long
-    m = re.search(r'[?&]ll=(-?\d+\.\d+),(-?\d+\.\d+)', text)
-    if m:
-        return float(m.group(1)), float(m.group(2))
-
-    # !3dlat!4dlong
-    m = re.search(r'!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)', text)
-    if m:
-        return float(m.group(1)), float(m.group(2))
+    for p in patterns:
+        m = re.search(p, text)
+        if m:
+            return float(m.group(1)), float(m.group(2))
 
     return None, None
 
 def haversine(lat1, lon1, lat2, lon2):
     R = 6371
-    lat1, lon1, lat2, lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
+    lat1, lon1, lat2, lon2 = map(math.radians,[lat1,lon1,lat2,lon2])
     dlat = lat2 - lat1
     dlon = lon2 - lon1
     a = math.sin(dlat/2)**2 + math.cos(lat1)*math.cos(lat2)*math.sin(dlon/2)**2
@@ -167,11 +156,14 @@ gc = gspread.authorize(creds)
 sheet = gc.open_by_key("1VNVTYE13BEJ2-P0klp5vI7XdPRd0poZujIyNQuk-nms")
 df = pd.DataFrame(sheet.worksheet("Franchise_Summary").get_all_records())
 
+# ===============================
+# EXTRACT LAT/LONG FROM SHEET
+# ===============================
 for col in df.columns:
     if df[col].astype(str).str.contains(r'^-?\d+\.\d+,\s*-?\d+\.\d+$').any():
-        sp = df[col].astype(str).str.split(",", expand=True)
-        df["Latitude"] = pd.to_numeric(sp[0], errors="coerce")
-        df["Longitude"] = pd.to_numeric(sp[1], errors="coerce")
+        split = df[col].astype(str).str.split(",", expand=True)
+        df["Latitude"] = pd.to_numeric(split[0], errors="coerce")
+        df["Longitude"] = pd.to_numeric(split[1], errors="coerce")
         df["Lat_Long"] = df[col]
         break
 
@@ -188,13 +180,24 @@ if run:
     for _, r in df.iterrows():
         if pd.isna(r["Latitude"]) or pd.isna(r["Longitude"]):
             continue
+
         km = haversine(ulat, ulng, r["Latitude"], r["Longitude"])
-        url = f"https://www.google.com/maps/dir/?api=1&origin={ulat},{ulng}&destination={r['Lat_Long']}"
+
+        route_url = (
+            f"https://www.google.com/maps/dir/?api=1"
+            f"&origin={ulat},{ulng}"
+            f"&destination={r['Lat_Long']}"
+        )
+
         rows.append({
-            "PARTY NAME": r.get("PARTY NAME", ""),
-            "ADDRESS": r.get("ADDRESS", ""),
+            "VIEW ROUTE": route_url,
             "KM": round(km, 2),
-            "VIEW ROUTE": url
+            "PARTY": r.get("PARTY NAME", ""),
+            "PINCODE": r.get("PINCODE", ""),
+            "CITY": r.get("CITY", ""),
+            "DISTRICT": r.get("DISTRICT", ""),
+            "STATE": r.get("STATE", ""),
+            "ADDRESS": r.get("ADDRESS", "")
         })
 
     out = pd.DataFrame(rows).sort_values("KM")
@@ -205,7 +208,7 @@ if run:
         use_container_width=True,
         column_config={
             "VIEW ROUTE": st.column_config.LinkColumn(
-                "MAP",
+                "View Route",
                 display_text="View Route"
             )
         }

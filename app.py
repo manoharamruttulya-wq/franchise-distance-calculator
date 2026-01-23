@@ -20,31 +20,22 @@ st.set_page_config(
 st.markdown("""
 <style>
 .block-container {
-    max-width: 1100px;
+    max-width: 1200px;
     padding-top: 1rem;
 }
 
+/* Header */
 .mc-header {
     display: flex;
     align-items: center;
     gap: 14px;
 }
-
-.mc-logo img {
-    height: 56px;
-}
-
-.mc-title {
-    font-size: 30px;
-    font-weight: 900;
-}
+.mc-logo img { height: 56px; }
+.mc-title { font-size: 30px; font-weight: 900; }
 .mc-title .red { color: #b71c1c; }
+.mc-sub { font-size: 13px; color: #666; }
 
-.mc-sub {
-    font-size: 13px;
-    color: #666;
-}
-
+/* Button */
 .stButton button {
     background-color: #b71c1c;
     color: white;
@@ -55,6 +46,18 @@ st.markdown("""
 }
 .stButton button:hover { background-color: #8e0000; }
 
+/* Dataframe header color */
+div[data-testid="stDataFrame"] thead tr th:first-child,
+div[data-testid="stDataFrame"] thead tr th:nth-child(2) {
+    background-color: #b71c1c !important;
+    color: white !important;
+}
+
+/* Bold S No */
+div[data-testid="stDataFrame"] tbody tr td:first-child {
+    font-weight: 700;
+}
+
 @media (max-width: 768px) {
     .mc-header { flex-direction: column; text-align: center; }
 }
@@ -62,10 +65,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ===============================
-# SPACING + HEADER
+# HEADER
 # ===============================
-st.markdown("<div style='height:76px'></div>", unsafe_allow_html=True)
-
 st.markdown("""
 <div class="mc-header">
     <div class="mc-logo">
@@ -78,7 +79,7 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-st.markdown("<div style='height:48px'></div>", unsafe_allow_html=True)
+st.markdown("<br>", unsafe_allow_html=True)
 
 # ===============================
 # INPUT
@@ -99,7 +100,6 @@ def extract_lat_lng(text):
     if not text:
         return None, None
 
-    # Expand short links
     if "maps.app.goo.gl" in text:
         try:
             r = requests.get(text, allow_redirects=True, timeout=10)
@@ -157,13 +157,13 @@ sheet = gc.open_by_key("1VNVTYE13BEJ2-P0klp5vI7XdPRd0poZujIyNQuk-nms")
 df = pd.DataFrame(sheet.worksheet("Franchise_Summary").get_all_records())
 
 # ===============================
-# EXTRACT LAT/LONG FROM SHEET
+# EXTRACT LAT/LONG
 # ===============================
 for col in df.columns:
     if df[col].astype(str).str.contains(r'^-?\d+\.\d+,\s*-?\d+\.\d+$').any():
-        split = df[col].astype(str).str.split(",", expand=True)
-        df["Latitude"] = pd.to_numeric(split[0], errors="coerce")
-        df["Longitude"] = pd.to_numeric(split[1], errors="coerce")
+        sp = df[col].astype(str).str.split(",", expand=True)
+        df["Latitude"] = pd.to_numeric(sp[0], errors="coerce")
+        df["Longitude"] = pd.to_numeric(sp[1], errors="coerce")
         df["Lat_Long"] = df[col]
         break
 
@@ -177,12 +177,13 @@ if run:
         st.stop()
 
     rows = []
+    sno = 1
+
     for _, r in df.iterrows():
         if pd.isna(r["Latitude"]) or pd.isna(r["Longitude"]):
             continue
 
         km = haversine(ulat, ulng, r["Latitude"], r["Longitude"])
-
         route_url = (
             f"https://www.google.com/maps/dir/?api=1"
             f"&origin={ulat},{ulng}"
@@ -190,6 +191,7 @@ if run:
         )
 
         rows.append({
+            "S NO": sno,
             "VIEW ROUTE": route_url,
             "KM": round(km, 2),
             "PARTY": r.get("PARTY NAME", ""),
@@ -199,12 +201,17 @@ if run:
             "STATE": r.get("STATE", ""),
             "ADDRESS": r.get("ADDRESS", "")
         })
+        sno += 1
 
     out = pd.DataFrame(rows).sort_values("KM")
 
     st.subheader("📊 All Outlet Distances (Nearest → Farthest)")
+    st.caption("⬅️ ➡️ Horizontal scroll • ⬆️ ⬇️ Vertical scroll")
+
+    st.markdown("<div style='max-height:520px; overflow:auto;'>", unsafe_allow_html=True)
     st.dataframe(
         out,
+        hide_index=True,
         use_container_width=True,
         column_config={
             "VIEW ROUTE": st.column_config.LinkColumn(
@@ -213,3 +220,4 @@ if run:
             )
         }
     )
+    st.markdown("</div>", unsafe_allow_html=True)

@@ -1,212 +1,191 @@
 import streamlit as st
-import math
 import pandas as pd
-import gspread
+import math
 import re
 import requests
-from oauth2client.service_account import ServiceAccountCredentials
 
 # ===============================
 # PAGE CONFIG
 # ===============================
 st.set_page_config(
-    page_title="Manohar Chai – Franchise Distance Tool",
+    page_title="Manohar Chai | Franchise Distance Tool",
     layout="wide"
 )
 
 # ===============================
-# CSS (SAFE, NO BLANK)
+# BASIC UI / BRANDING
 # ===============================
 st.markdown("""
 <style>
-.block-container {
-    max-width: 1100px;
-    padding-top: 1rem;
+.header {
+    display:flex;
+    align-items:center;
+    gap:16px;
+    margin-top:40px;
+    margin-bottom:30px;
+}
+.header img { height:70px; }
+.brand {
+    font-size:34px;
+    font-weight:800;
+}
+.brand span { color:#c01818; }
+.subtitle {
+    color:#666;
+    margin-top:-6px;
 }
 
-.mc-header {
-    display: flex;
-    align-items: center;
-    gap: 14px;
+.card {
+    background:white;
+    padding:24px;
+    border-radius:18px;
+    box-shadow:0 8px 20px rgba(0,0,0,0.08);
+    margin-bottom:30px;
 }
 
-.mc-logo img {
-    height: 56px;
-}
-
-.mc-title {
-    font-size: 30px;
-    font-weight: 900;
-}
-.mc-title .red { color: #b71c1c; }
-
-.mc-sub {
-    font-size: 13px;
-    color: #666;
-}
-
-.stButton button {
-    background-color: #b71c1c;
-    color: white;
-    font-weight: 700;
-    border-radius: 12px;
-    height: 52px;
-    font-size: 16px;
-}
-.stButton button:hover { background-color: #8e0000; }
-
-@media (max-width: 768px) {
-    .mc-header { flex-direction: column; text-align: center; }
+.stButton > button {
+    background:#c01818;
+    color:white;
+    font-size:18px;
+    padding:14px;
+    border-radius:14px;
+    width:100%;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# ===============================
-# 2 CM TOP SPACER
-# ===============================
-st.markdown("<div style='height:76px'></div>", unsafe_allow_html=True)
-
-# ===============================
-# HEADER
-# ===============================
 st.markdown("""
-<div class="mc-header">
-    <div class="mc-logo">
-        <img src="https://raw.githubusercontent.com/manoharamruttulya-wq/franchise-distance-calculator/main/ManoharLogo_Social.png">
-    </div>
+<div class="header">
+    <img src="ManoharLogo_Social.png">
     <div>
-        <div class="mc-title"><span class="red">MANOHAR</span> CHAI</div>
-        <div class="mc-sub">Franchise Distance Calculator · Internal Office Use Only</div>
+        <div class="brand"><span>MANOHAR</span> CHAI</div>
+        <div class="subtitle">Franchise Distance Calculator · Internal Office Use Only</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
 
-st.markdown("<div style='height:48px'></div>", unsafe_allow_html=True)
-
-# ===============================
-# INPUT
-# ===============================
-st.subheader("📍 Enter Location")
-
-location_input = st.text_input(
-    "Paste Lat,Long OR Google Maps link",
-    placeholder="22.05762,78.93807  OR  https://maps.app.goo.gl/..."
-)
-
-run = st.button("🔍 Calculate Distance", use_container_width=True)
-
 # ===============================
 # HELPERS
 # ===============================
-def extract_lat_lng(text):
-    if not text:
-        return None, None
-
-    # Expand short links (maps.app.goo.gl)
-    if "maps.app.goo.gl" in text:
-        try:
-            r = requests.get(text, allow_redirects=True, timeout=10)
-            text = r.url
-        except:
-            return None, None
-
-    # lat,long
-    m = re.search(r'(-?\d+\.\d+),\s*(-?\d+\.\d+)', text)
-    if m:
-        return float(m.group(1)), float(m.group(2))
-
-    # @lat,long
-    m = re.search(r'@(-?\d+\.\d+),(-?\d+\.\d+)', text)
-    if m:
-        return float(m.group(1)), float(m.group(2))
-
-    # ll=lat,long
-    m = re.search(r'[?&]ll=(-?\d+\.\d+),(-?\d+\.\d+)', text)
-    if m:
-        return float(m.group(1)), float(m.group(2))
-
-    # !3dlat!4dlong
-    m = re.search(r'!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)', text)
-    if m:
-        return float(m.group(1)), float(m.group(2))
-
-    return None, None
-
 def haversine(lat1, lon1, lat2, lon2):
     R = 6371
-    lat1, lon1, lat2, lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
+    lat1, lon1, lat2, lon2 = map(math.radians,[lat1,lon1,lat2,lon2])
     dlat = lat2 - lat1
     dlon = lon2 - lon1
     a = math.sin(dlat/2)**2 + math.cos(lat1)*math.cos(lat2)*math.sin(dlon/2)**2
     return 2 * R * math.asin(math.sqrt(a))
 
-# ===============================
-# GOOGLE SHEET AUTH
-# ===============================
-scope = [
-    "https://spreadsheets.google.com/feeds",
-    "https://www.googleapis.com/auth/drive"
-]
+def extract_latlon(text):
+    m = re.search(r'(-?\d+\.\d+),\s*(-?\d+\.\d+)', text)
+    if m:
+        return float(m.group(1)), float(m.group(2))
+    return None
 
-creds_dict = {
-    "type": st.secrets["gcp"]["type"],
-    "project_id": st.secrets["gcp"]["project_id"],
-    "private_key_id": st.secrets["gcp"]["private_key_id"],
-    "private_key": st.secrets["gcp"]["private_key"].replace("\\n", "\n"),
-    "client_email": st.secrets["gcp"]["client_email"],
-    "client_id": st.secrets["gcp"]["client_id"],
-    "auth_uri": st.secrets["gcp"]["auth_uri"],
-    "token_uri": st.secrets["gcp"]["token_uri"],
-    "auth_provider_x509_cert_url": st.secrets["gcp"]["auth_provider_x509_cert_url"],
-    "client_x509_cert_url": st.secrets["gcp"]["client_x509_cert_url"],
-}
+def expand_short_url(url):
+    try:
+        r = requests.head(url, allow_redirects=True, timeout=10)
+        return r.url
+    except:
+        return url
 
-creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-gc = gspread.authorize(creds)
+def get_latlon(input_text):
+    if not input_text:
+        return None
 
-sheet = gc.open_by_key("1VNVTYE13BEJ2-P0klp5vI7XdPRd0poZujIyNQuk-nms")
-df = pd.DataFrame(sheet.worksheet("Franchise_Summary").get_all_records())
+    # direct lat,long
+    ll = extract_latlon(input_text)
+    if ll:
+        return ll
 
-for col in df.columns:
-    if df[col].astype(str).str.contains(r'^-?\d+\.\d+,\s*-?\d+\.\d+$').any():
-        sp = df[col].astype(str).str.split(",", expand=True)
-        df["Latitude"] = pd.to_numeric(sp[0], errors="coerce")
-        df["Longitude"] = pd.to_numeric(sp[1], errors="coerce")
-        df["Lat_Long"] = df[col]
-        break
+    # maps.app.goo.gl support
+    if "maps.app.goo.gl" in input_text:
+        input_text = expand_short_url(input_text)
+
+    return extract_latlon(input_text)
 
 # ===============================
-# RUN
+# SAMPLE DATA (replace with Google Sheet later)
 # ===============================
-if run:
-    ulat, ulng = extract_lat_lng(location_input)
-    if ulat is None:
-        st.error("❌ Invalid location format")
-        st.stop()
+outlets = pd.DataFrame([
+    {
+        "PARTY NAME":"Outlet A",
+        "PINCODE":"480001",
+        "CITY":"Chhindwara",
+        "DISTRICT":"Chhindwara",
+        "STATE":"Madhya Pradesh",
+        "ADDRESS":"Main Road",
+        "LAT":22.0532,
+        "LON":78.9435
+    },
+    {
+        "PARTY NAME":"Outlet B",
+        "PINCODE":"480002",
+        "CITY":"Chhindwara",
+        "DISTRICT":"Chhindwara",
+        "STATE":"Madhya Pradesh",
+        "ADDRESS":"Bus Stand",
+        "LAT":22.0496,
+        "LON":78.9389
+    },
+    {
+        "PARTY NAME":"Outlet C",
+        "PINCODE":"480003",
+        "CITY":"Chhindwara",
+        "DISTRICT":"Chhindwara",
+        "STATE":"Madhya Pradesh",
+        "ADDRESS":"Nagpur Road",
+        "LAT":22.0603,
+        "LON":78.9521
+    }
+])
 
-    rows = []
-    for _, r in df.iterrows():
-        if pd.isna(r["Latitude"]) or pd.isna(r["Longitude"]):
-            continue
-        km = haversine(ulat, ulng, r["Latitude"], r["Longitude"])
-        url = f"https://www.google.com/maps/dir/?api=1&origin={ulat},{ulng}&destination={r['Lat_Long']}"
-        rows.append({
-            "PARTY NAME": r.get("PARTY NAME", ""),
-            "ADDRESS": r.get("ADDRESS", ""),
-            "KM": round(km, 2),
-            "VIEW ROUTE": url
-        })
+# ===============================
+# INPUT
+# ===============================
+st.markdown('<div class="card">', unsafe_allow_html=True)
 
-    out = pd.DataFrame(rows).sort_values("KM")
+st.markdown("📍 **Enter Location**")
+location_input = st.text_input(
+    "Paste Lat,Long OR Google Maps link",
+    placeholder="22.05762,78.93807  OR  https://maps.app.goo.gl/..."
+)
 
-    st.subheader("📊 All Outlet Distances (Nearest → Farthest)")
-    st.dataframe(
-        out,
-        use_container_width=True,
-        column_config={
-            "VIEW ROUTE": st.column_config.LinkColumn(
-                "MAP",
-                display_text="View Route"
+calculate = st.button("🔍 Calculate Distance")
+
+st.markdown('</div>', unsafe_allow_html=True)
+
+# ===============================
+# RESULT
+# ===============================
+if calculate:
+    latlon = get_latlon(location_input)
+
+    if not latlon:
+        st.error("❌ Invalid location format. Please paste Google Maps link or lat,long.")
+    else:
+        lat, lon = latlon
+        rows = []
+
+        for _, r in outlets.iterrows():
+            km = haversine(lat, lon, r["LAT"], r["LON"])
+            route = (
+                f"https://www.google.com/maps/dir/?api=1"
+                f"&origin={lat},{lon}"
+                f"&destination={r['LAT']},{r['LON']}"
             )
-        }
-    )
+
+            rows.append({
+                "View Route": f"[View Route]({route})",   # 1
+                "KM": round(km, 2),                       # 2
+                "Party": r["PARTY NAME"],                 # 3
+                "Pincode": r["PINCODE"],                  # 4
+                "City": r["CITY"],                        # 5
+                "District": r["DISTRICT"],                # 6
+                "State": r["STATE"],                      # 7
+                "Address": r["ADDRESS"]                   # 8
+            })
+
+        result_df = pd.DataFrame(rows).sort_values("KM")
+
+        st.markdown("### 📊 All Outlet Distances (Nearest → Farthest)")
+        st.markdown(result_df.to_markdown(index=False), unsafe_allow_html=True)

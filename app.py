@@ -24,7 +24,7 @@ st.markdown("""
     padding-top: 1rem;
 }
 
-/* Header */
+/* HEADER */
 .mc-header {
     display: flex;
     align-items: center;
@@ -35,7 +35,7 @@ st.markdown("""
 .mc-title .red { color: #b71c1c; }
 .mc-sub { font-size: 13px; color: #666; }
 
-/* Button */
+/* BUTTON */
 .stButton button {
     background-color: #b71c1c;
     color: white;
@@ -46,16 +46,36 @@ st.markdown("""
 }
 .stButton button:hover { background-color: #8e0000; }
 
-/* Dataframe header color */
-div[data-testid="stDataFrame"] thead tr th:first-child,
-div[data-testid="stDataFrame"] thead tr th:nth-child(2) {
-    background-color: #b71c1c !important;
-    color: white !important;
+/* TABLE */
+.mc-scroll-top, .mc-scroll-bottom {
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+.mc-scroll-top { height: 18px; }
+.mc-scroll-bottom { max-height: 520px; overflow: auto; }
+
+.mc-table {
+    border-collapse: collapse;
+    width: 1400px;
+    font-size: 14px;
 }
 
-/* Bold S No */
-div[data-testid="stDataFrame"] tbody tr td:first-child {
-    font-weight: 700;
+.mc-table th {
+    background: #b71c1c;
+    color: white;
+    padding: 8px;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+.mc-table td {
+    padding: 7px;
+    border-bottom: 1px solid #eee;
+}
+
+.mc-table tr:hover {
+    background: #fafafa;
 }
 
 @media (max-width: 768px) {
@@ -205,19 +225,69 @@ if run:
 
     out = pd.DataFrame(rows).sort_values("KM")
 
-    st.subheader("📊 All Outlet Distances (Nearest → Farthest)")
-    st.caption("⬅️ ➡️ Horizontal scroll • ⬆️ ⬇️ Vertical scroll")
+    # ===============================
+    # TOP SCROLL BAR
+    # ===============================
+    st.markdown("""
+    <div class="mc-scroll-top" id="top-scroll">
+        <div style="width:1400px;height:1px;"></div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    st.markdown("<div style='max-height:520px; overflow:auto;'>", unsafe_allow_html=True)
-    st.dataframe(
-        out,
-        hide_index=True,
-        use_container_width=True,
-        column_config={
-            "VIEW ROUTE": st.column_config.LinkColumn(
-                "View Route",
-                display_text="View Route"
-            )
-        }
-    )
-    st.markdown("</div>", unsafe_allow_html=True)
+    # ===============================
+    # TABLE
+    # ===============================
+    table_html = """
+    <div class="mc-scroll-bottom" id="bottom-scroll">
+    <table class="mc-table">
+    <thead>
+        <tr>
+            <th>S No</th>
+            <th>View Route</th>
+            <th>KM</th>
+            <th>Party</th>
+            <th>Pincode</th>
+            <th>City</th>
+            <th>District</th>
+            <th>State</th>
+            <th>Address</th>
+        </tr>
+    </thead>
+    <tbody>
+    """
+
+    for _, r in out.iterrows():
+        table_html += f"""
+        <tr>
+            <td>{r['S NO']}</td>
+            <td><a href="{r['VIEW ROUTE']}" target="_blank">View Route</a></td>
+            <td>{r['KM']}</td>
+            <td>{r['PARTY']}</td>
+            <td>{r['PINCODE']}</td>
+            <td>{r['CITY']}</td>
+            <td>{r['DISTRICT']}</td>
+            <td>{r['STATE']}</td>
+            <td>{r['ADDRESS']}</td>
+        </tr>
+        """
+
+    table_html += "</tbody></table></div>"
+
+    st.markdown(table_html, unsafe_allow_html=True)
+
+    # ===============================
+    # SCROLL SYNC JS
+    # ===============================
+    st.markdown("""
+    <script>
+    const topScroll = document.getElementById("top-scroll");
+    const bottomScroll = document.getElementById("bottom-scroll");
+
+    topScroll.onscroll = () => {
+        bottomScroll.scrollLeft = topScroll.scrollLeft;
+    };
+    bottomScroll.onscroll = () => {
+        topScroll.scrollLeft = bottomScroll.scrollLeft;
+    };
+    </script>
+    """, unsafe_allow_html=True)

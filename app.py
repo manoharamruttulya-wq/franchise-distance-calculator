@@ -7,46 +7,45 @@ import requests
 from oauth2client.service_account import ServiceAccountCredentials
 import streamlit.components.v1 as components
 
-# ======================================================
+# =============================
 # PAGE CONFIG
-# ======================================================
+# =============================
 st.set_page_config(
     page_title="Manohar Chai – Franchise Distance Tool",
     layout="wide"
 )
 
-# ======================================================
+# =============================
 # CSS
-# ======================================================
+# =============================
 st.markdown("""
 <style>
 .block-container {
     max-width: 1400px;
-    padding-top: 1rem;
+    padding-top: 20px;
 }
 
+/* HEADER */
 .mc-header {
     display: flex;
     align-items: center;
     gap: 16px;
     margin-top: 40px;
 }
-
 .mc-logo img {
     height: 60px;
 }
-
 .mc-title {
     font-size: 32px;
     font-weight: 900;
 }
 .mc-title .red { color: #b71c1c; }
-
 .mc-sub {
     font-size: 13px;
     color: #666;
 }
 
+/* BUTTON */
 .stButton button {
     background-color: #b71c1c;
     color: white;
@@ -60,59 +59,52 @@ st.markdown("""
 }
 
 /* TABLE */
-.mc-table-wrapper {
+.table-wrapper {
+    width: 100%;
     overflow-x: auto;
-    border-radius: 12px;
     border: 1px solid #ddd;
+    border-radius: 12px;
 }
 
-.mc-table {
+.custom-table {
     border-collapse: collapse;
-    min-width: 1400px;
+    min-width: 1600px;
     width: 100%;
     font-size: 14px;
 }
 
-.mc-table thead th {
+.custom-table thead th {
     background: #b71c1c;
-    color: white;
+    color: #ffffff;
     padding: 10px;
     text-align: left;
     white-space: nowrap;
 }
 
-.mc-table tbody td {
+.custom-table tbody td {
     padding: 8px 10px;
     border-bottom: 1px solid #eee;
     white-space: nowrap;
 }
 
-.mc-table tbody tr:hover {
-    background: #fff4f4;
+.custom-table tbody tr:hover {
+    background: #fff3f3;
 }
 
-.mc-link {
+.route-link {
     color: #1565c0;
     font-weight: 600;
     text-decoration: none;
 }
-
-.mc-link:hover {
+.route-link:hover {
     text-decoration: underline;
-}
-
-@media (max-width: 768px) {
-    .mc-header {
-        flex-direction: column;
-        text-align: center;
-    }
 }
 </style>
 """, unsafe_allow_html=True)
 
-# ======================================================
+# =============================
 # HEADER
-# ======================================================
+# =============================
 st.markdown("""
 <div class="mc-header">
     <div class="mc-logo">
@@ -125,11 +117,11 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-st.markdown("<div style='height:36px'></div>", unsafe_allow_html=True)
+st.markdown("<br><br>", unsafe_allow_html=True)
 
-# ======================================================
+# =============================
 # INPUT
-# ======================================================
+# =============================
 st.subheader("📍 Enter Location")
 
 location_input = st.text_input(
@@ -139,14 +131,13 @@ location_input = st.text_input(
 
 run = st.button("🔍 Calculate Distance", use_container_width=True)
 
-# ======================================================
+# =============================
 # HELPERS
-# ======================================================
+# =============================
 def extract_lat_lng(text):
     if not text:
         return None, None
 
-    # Expand short links
     if "maps.app.goo.gl" in text:
         try:
             r = requests.get(text, allow_redirects=True, timeout=10)
@@ -168,7 +159,6 @@ def extract_lat_lng(text):
 
     return None, None
 
-
 def haversine(lat1, lon1, lat2, lon2):
     R = 6371
     lat1, lon1, lat2, lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
@@ -177,9 +167,9 @@ def haversine(lat1, lon1, lat2, lon2):
     a = math.sin(dlat/2)**2 + math.cos(lat1)*math.cos(lat2)*math.sin(dlon/2)**2
     return 2 * R * math.asin(math.sqrt(a))
 
-# ======================================================
+# =============================
 # GOOGLE SHEET
-# ======================================================
+# =============================
 scope = [
     "https://spreadsheets.google.com/feeds",
     "https://www.googleapis.com/auth/drive"
@@ -194,21 +184,19 @@ gc = gspread.authorize(creds)
 sheet = gc.open_by_key("1VNVTYE13BEJ2-P0klp5vI7XdPRd0poZujIyNQuk-nms")
 df = pd.DataFrame(sheet.worksheet("Franchise_Summary").get_all_records())
 
-# Find Lat_Long column
 for col in df.columns:
     if df[col].astype(str).str.contains(r'^-?\d+\.\d+,\s*-?\d+\.\d+$').any():
-        split = df[col].astype(str).str.split(",", expand=True)
-        df["Latitude"] = pd.to_numeric(split[0], errors="coerce")
-        df["Longitude"] = pd.to_numeric(split[1], errors="coerce")
+        sp = df[col].astype(str).str.split(",", expand=True)
+        df["Latitude"] = pd.to_numeric(sp[0], errors="coerce")
+        df["Longitude"] = pd.to_numeric(sp[1], errors="coerce")
         df["Lat_Long"] = df[col]
         break
 
-# ======================================================
+# =============================
 # RUN
-# ======================================================
+# =============================
 if run:
     ulat, ulng = extract_lat_lng(location_input)
-
     if ulat is None:
         st.error("❌ Invalid location format")
         st.stop()
@@ -224,8 +212,8 @@ if run:
         route = f"https://www.google.com/maps/dir/?api=1&origin={ulat},{ulng}&destination={r['Lat_Long']}"
 
         rows.append({
-            "S NO": sno,
-            "VIEW ROUTE": route,
+            "SNO": sno,
+            "ROUTE": route,
             "KM": round(km, 2),
             "PARTY": r.get("PARTY NAME", ""),
             "PINCODE": r.get("PINCODE", ""),
@@ -238,12 +226,12 @@ if run:
 
     out = pd.DataFrame(rows).sort_values("KM")
 
-    # ======================================================
-    # HTML TABLE
-    # ======================================================
-    table_html = """
-    <div class="mc-table-wrapper">
-    <table class="mc-table">
+    # =============================
+    # HTML TABLE (FINAL)
+    # =============================
+    html = """
+    <div class="table-wrapper">
+    <table class="custom-table">
         <thead>
             <tr>
                 <th>S NO</th>
@@ -261,10 +249,10 @@ if run:
     """
 
     for _, r in out.iterrows():
-        table_html += f"""
+        html += f"""
         <tr>
-            <td>{r['S NO']}</td>
-            <td><a class="mc-link" href="{r['VIEW ROUTE']}" target="_blank">View Route</a></td>
+            <td>{r['SNO']}</td>
+            <td><a class="route-link" href="{r['ROUTE']}" target="_blank">View Route</a></td>
             <td>{r['KM']}</td>
             <td>{r['PARTY']}</td>
             <td>{r['PINCODE']}</td>
@@ -275,12 +263,7 @@ if run:
         </tr>
         """
 
-    table_html += "</tbody></table></div>"
+    html += "</tbody></table></div>"
 
     st.subheader("📊 All Outlet Distances (Nearest → Farthest)")
-
-    components.html(
-        table_html,
-        height=600,
-        scrolling=True
-    )
+    components.html(html, height=600, scrolling=True)

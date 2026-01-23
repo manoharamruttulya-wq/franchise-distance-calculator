@@ -3,6 +3,7 @@ import math
 import pandas as pd
 import gspread
 import re
+import requests
 from oauth2client.service_account import ServiceAccountCredentials
 
 # ===============================
@@ -14,7 +15,7 @@ st.set_page_config(
 )
 
 # ===============================
-# CSS (SAFE + CLEAN)
+# CSS (SAFE, NO BLANK)
 # ===============================
 st.markdown("""
 <style>
@@ -23,7 +24,6 @@ st.markdown("""
     padding-top: 1rem;
 }
 
-/* HEADER */
 .mc-header {
     display: flex;
     align-items: center;
@@ -38,16 +38,13 @@ st.markdown("""
     font-size: 30px;
     font-weight: 900;
 }
-.mc-title .red {
-    color: #b71c1c;
-}
+.mc-title .red { color: #b71c1c; }
 
 .mc-sub {
     font-size: 13px;
     color: #666;
 }
 
-/* BUTTON */
 .stButton button {
     background-color: #b71c1c;
     color: white;
@@ -56,24 +53,18 @@ st.markdown("""
     height: 52px;
     font-size: 16px;
 }
-.stButton button:hover {
-    background-color: #8e0000;
-}
+.stButton button:hover { background-color: #8e0000; }
 
-/* MOBILE */
 @media (max-width: 768px) {
-    .mc-header {
-        flex-direction: column;
-        text-align: center;
-    }
+    .mc-header { flex-direction: column; text-align: center; }
 }
 </style>
 """, unsafe_allow_html=True)
 
 # ===============================
-# 🔽 1 CM TOP SPACER (IMPORTANT)
+# 2 CM TOP SPACER
 # ===============================
-st.markdown("<div style='height:45px'></div>", unsafe_allow_html=True)
+st.markdown("<div style='height:76px'></div>", unsafe_allow_html=True)
 
 # ===============================
 # HEADER
@@ -90,19 +81,16 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# ===============================
-# SPACING AFTER HEADER
-# ===============================
 st.markdown("<div style='height:48px'></div>", unsafe_allow_html=True)
 
 # ===============================
-# INPUT SECTION (NO CARD / NO RECTANGLE)
+# INPUT
 # ===============================
 st.subheader("📍 Enter Location")
 
 location_input = st.text_input(
     "Paste Lat,Long OR Google Maps link",
-    placeholder="22.05762,78.93807  OR  https://maps.google.com/..."
+    placeholder="22.05762,78.93807  OR  https://maps.app.goo.gl/..."
 )
 
 run = st.button("🔍 Calculate Distance", use_container_width=True)
@@ -113,12 +101,35 @@ run = st.button("🔍 Calculate Distance", use_container_width=True)
 def extract_lat_lng(text):
     if not text:
         return None, None
+
+    # Expand short links (maps.app.goo.gl)
+    if "maps.app.goo.gl" in text:
+        try:
+            r = requests.get(text, allow_redirects=True, timeout=10)
+            text = r.url
+        except:
+            return None, None
+
+    # lat,long
     m = re.search(r'(-?\d+\.\d+),\s*(-?\d+\.\d+)', text)
     if m:
         return float(m.group(1)), float(m.group(2))
+
+    # @lat,long
     m = re.search(r'@(-?\d+\.\d+),(-?\d+\.\d+)', text)
     if m:
         return float(m.group(1)), float(m.group(2))
+
+    # ll=lat,long
+    m = re.search(r'[?&]ll=(-?\d+\.\d+),(-?\d+\.\d+)', text)
+    if m:
+        return float(m.group(1)), float(m.group(2))
+
+    # !3dlat!4dlong
+    m = re.search(r'!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)', text)
+    if m:
+        return float(m.group(1)), float(m.group(2))
+
     return None, None
 
 def haversine(lat1, lon1, lat2, lon2):

@@ -11,7 +11,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 # ===============================
 st.set_page_config(page_title="Manohar Chai – Franchise Distance Tool", layout="wide")
 
-GOOGLE_API_KEY = st.secrets["AIzaSyDoVmVsidawDi3dtlvanSj-FpEkfeBwyFI"]
+GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
 
 # ===============================
 # SMART GEOCODE (CACHED)

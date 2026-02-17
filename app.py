@@ -15,51 +15,102 @@ st.set_page_config(
 )
 
 # ===============================
-# LOAD GOOGLE API KEY SAFELY
+# CSS
 # ===============================
-GOOGLE_API_KEY = st.secrets.get("GOOGLE_API_KEY")
+st.markdown("""
+<style>
+.block-container {
+    max-width: 1100px;
+    padding-top: 1rem;
+}
+
+.mc-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.mc-logo img {
+    height: 56px;
+}
+
+.mc-title {
+    font-size: 30px;
+    font-weight: 900;
+}
+.mc-title .red { color: #b71c1c; }
+
+.mc-sub {
+    font-size: 13px;
+    color: #666;
+}
+
+.stButton button {
+    background-color: #b71c1c;
+    color: white;
+    font-weight: 700;
+    border-radius: 12px;
+    height: 52px;
+    font-size: 16px;
+}
+.stButton button:hover { background-color: #8e0000; }
+
+@media (max-width: 768px) {
+    .mc-header { flex-direction: column; text-align: center; }
+}
+</style>
+""", unsafe_allow_html=True)
 
 # ===============================
-# SMART GEOCODE (CACHED)
+# SPACING + HEADER
 # ===============================
-@st.cache_data(show_spinner=False)
-def geocode_address(address, api_key):
-    if not api_key:
-        return None, None
+st.markdown("<div style='height:76px'></div>", unsafe_allow_html=True)
 
-    url = "https://maps.googleapis.com/maps/api/geocode/json"
-    params = {"address": address, "key": api_key}
+st.markdown("""
+<div class="mc-header">
+    <div class="mc-logo">
+        <img src="https://raw.githubusercontent.com/manoharamruttulya-wq/franchise-distance-calculator/main/ManoharLogo_Social.png">
+    </div>
+    <div>
+        <div class="mc-title"><span class="red">MANOHAR</span> CHAI</div>
+        <div class="mc-sub">Franchise Distance Calculator · Internal Office Use Only</div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
-    try:
-        response = requests.get(url, params=params, timeout=10)
-        data = response.json()
-
-        if data["status"] == "OK":
-            location = data["results"][0]["geometry"]["location"]
-            return location["lat"], location["lng"]
-    except:
-        pass
-
-    return None, None
-
+st.markdown("<div style='height:48px'></div>", unsafe_allow_html=True)
 
 # ===============================
-# HYBRID COORD EXTRACT
+# INPUT
+# ===============================
+st.subheader("📍 Enter Location")
+
+location_input = st.text_input(
+    "Paste Lat,Long OR Google Maps link",
+    placeholder="22.05762,78.93807  OR  https://maps.app.goo.gl/..."
+)
+
+run = st.button("🔍 Calculate Distance", use_container_width=True)
+
+# ===============================
+# HELPERS
 # ===============================
 def extract_lat_lng(text):
     if not text:
         return None, None
 
-    text = text.strip()
+    # Expand short links
+    if "maps.app.goo.gl" in text:
+        try:
+            r = requests.get(text, allow_redirects=True, timeout=10)
+            text = r.url
+        except:
+            return None, None
 
-    # 1️⃣ Direct lat,long
-    match = re.search(r'^(-?\d+\.\d+),\s*(-?\d+\.\d+)$', text)
-    if match:
-        return float(match.group(1)), float(match.group(2))
-
-    # 2️⃣ Extract from Google URL
     patterns = [
+        r'(-?\d+\.\d+),\s*(-?\d+\.\d+)',
         r'@(-?\d+\.\d+),(-?\d+\.\d+)',
+        r'[?&]ll=(-?\d+\.\d+),(-?\d+\.\d+)',
         r'!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)'
     ]
 
@@ -68,13 +119,8 @@ def extract_lat_lng(text):
         if m:
             return float(m.group(1)), float(m.group(2))
 
-    # 3️⃣ Fallback to API
-    return geocode_address(text, GOOGLE_API_KEY)
+    return None, None
 
-
-# ===============================
-# DISTANCE FUNCTION
-# ===============================
 def haversine(lat1, lon1, lat2, lon2):
     R = 6371
     lat1, lon1, lat2, lon2 = map(math.radians,[lat1,lon1,lat2,lon2])
@@ -83,21 +129,8 @@ def haversine(lat1, lon1, lat2, lon2):
     a = math.sin(dlat/2)**2 + math.cos(lat1)*math.cos(lat2)*math.sin(dlon/2)**2
     return 2 * R * math.asin(math.sqrt(a))
 
-
 # ===============================
-# UI
-# ===============================
-st.title("☕ MANOHAR CHAI – Franchise Distance Tool")
-
-location_input = st.text_input(
-    "Paste Lat,Long OR Google Maps link OR Address"
-)
-
-run = st.button("🔍 Calculate Distance", use_container_width=True)
-
-
-# ===============================
-# GOOGLE SHEET CONNECTION
+# GOOGLE SHEET AUTH
 # ===============================
 scope = [
     "https://spreadsheets.google.com/feeds",
@@ -123,31 +156,29 @@ gc = gspread.authorize(creds)
 sheet = gc.open_by_key("1VNVTYE13BEJ2-P0klp5vI7XdPRd0poZujIyNQuk-nms")
 df = pd.DataFrame(sheet.worksheet("Franchise_Summary").get_all_records())
 
-# Extract Lat/Long from sheet
+# ===============================
+# EXTRACT LAT/LONG FROM SHEET
+# ===============================
 for col in df.columns:
     if df[col].astype(str).str.contains(r'^-?\d+\.\d+,\s*-?\d+\.\d+$').any():
         split = df[col].astype(str).str.split(",", expand=True)
         df["Latitude"] = pd.to_numeric(split[0], errors="coerce")
         df["Longitude"] = pd.to_numeric(split[1], errors="coerce")
+        df["Lat_Long"] = df[col]
         break
-
 
 # ===============================
 # RUN
 # ===============================
 if run:
-
     ulat, ulng = extract_lat_lng(location_input)
-
     if ulat is None:
-        st.error("❌ Could not extract coordinates.")
+        st.error("❌ Invalid location format")
         st.stop()
 
     rows = []
-
     for _, r in df.iterrows():
-
-        if pd.isna(r.get("Latitude")) or pd.isna(r.get("Longitude")):
+        if pd.isna(r["Latitude"]) or pd.isna(r["Longitude"]):
             continue
 
         km = haversine(ulat, ulng, r["Latitude"], r["Longitude"])
@@ -155,25 +186,23 @@ if run:
         route_url = (
             f"https://www.google.com/maps/dir/?api=1"
             f"&origin={ulat},{ulng}"
-            f"&destination={r['Latitude']},{r['Longitude']}"
+            f"&destination={r['Lat_Long']}"
         )
 
         rows.append({
             "VIEW ROUTE": route_url,
             "KM": round(km, 2),
             "PARTY": r.get("PARTY NAME", ""),
+            "PINCODE": r.get("PINCODE", ""),
             "CITY": r.get("CITY", ""),
-            "STATE": r.get("STATE", "")
+            "DISTRICT": r.get("DISTRICT", ""),
+            "STATE": r.get("STATE", ""),
+            "ADDRESS": r.get("ADDRESS", "")
         })
-
-    if not rows:
-        st.warning("No valid outlet coordinates found.")
-        st.stop()
 
     out = pd.DataFrame(rows).sort_values("KM")
 
     st.subheader("📊 All Outlet Distances (Nearest → Farthest)")
-
     st.dataframe(
         out,
         use_container_width=True,

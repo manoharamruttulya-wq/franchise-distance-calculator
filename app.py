@@ -177,16 +177,24 @@ for col in df.columns:
 # ===============================
 if run:
     ulat, ulng = extract_lat_lng(location_input)
+
     if ulat is None:
         st.error("❌ Invalid location format")
         st.stop()
 
     rows = []
+
     for _, r in df.iterrows():
+
         if pd.isna(r["Latitude"]) or pd.isna(r["Longitude"]):
             continue
 
-        km = haversine(ulat, ulng, r["Latitude"], r["Longitude"])
+        km = haversine(
+            ulat,
+            ulng,
+            r["Latitude"],
+            r["Longitude"]
+        )
 
         route_url = (
             f"https://www.google.com/maps/dir/?api=1"
@@ -205,27 +213,30 @@ if run:
             "ADDRESS": r.get("ADDRESS", "")
         })
 
+    # Create dataframe AFTER loop
     out = pd.DataFrame(rows).sort_values("KM")
 
     st.subheader("📊 All Outlet Distances (Nearest → Farthest)")
+
+    # Convert all columns to string
     out["PINCODE"] = out["PINCODE"].fillna("").astype(str)
-out["PARTY"] = out["PARTY"].fillna("").astype(str)
-out["CITY"] = out["CITY"].fillna("").astype(str)
-out["DISTRICT"] = out["DISTRICT"].fillna("").astype(str)
-out["STATE"] = out["STATE"].fillna("").astype(str)
-out["ADDRESS"] = out["ADDRESS"].fillna("").astype(str)
+    out["PARTY"] = out["PARTY"].fillna("").astype(str)
+    out["CITY"] = out["CITY"].fillna("").astype(str)
+    out["DISTRICT"] = out["DISTRICT"].fillna("").astype(str)
+    out["STATE"] = out["STATE"].fillna("").astype(str)
+    out["ADDRESS"] = out["ADDRESS"].fillna("").astype(str)
 
-# 👇 Temporary debugging
-st.write(out.dtypes)
-st.write(out.head())
+    # Debug
+    st.write(out.dtypes)
+    st.write(out.head())
 
-st.dataframe(
-    out,
-    width="stretch",
-    column_config={
-        "VIEW ROUTE": st.column_config.LinkColumn(
-            "View Route",
-            display_text="View Route"
-        )
-    }
-)
+    st.dataframe(
+        out,
+        width="stretch",
+        column_config={
+            "VIEW ROUTE": st.column_config.LinkColumn(
+                "View Route",
+                display_text="View Route"
+            )
+        }
+    )

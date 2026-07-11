@@ -90,7 +90,7 @@ location_input = st.text_input(
     placeholder="22.05762,78.93807  OR  https://maps.app.goo.gl/..."
 )
 
-run = st.button("🔍 Calculate Distance", width="stretch")
+run = st.button("🔍 Calculate Distance", use_container_width=True)
 
 # ===============================
 # HELPERS
@@ -156,11 +156,6 @@ gc = gspread.authorize(creds)
 sheet = gc.open_by_key("1VNVTYE13BEJ2-P0klp5vI7XdPRd0poZujIyNQuk-nms")
 df = pd.DataFrame(sheet.worksheet("Franchise_Summary").get_all_records())
 
-# Below 3 lines added for log only
-st.write(df.shape)
-st.write(df.columns.tolist())
-st.write(df.head())
-
 # ===============================
 # EXTRACT LAT/LONG FROM SHEET
 # ===============================
@@ -177,24 +172,16 @@ for col in df.columns:
 # ===============================
 if run:
     ulat, ulng = extract_lat_lng(location_input)
-
     if ulat is None:
         st.error("❌ Invalid location format")
         st.stop()
 
     rows = []
-
     for _, r in df.iterrows():
-
         if pd.isna(r["Latitude"]) or pd.isna(r["Longitude"]):
             continue
 
-        km = haversine(
-            ulat,
-            ulng,
-            r["Latitude"],
-            r["Longitude"]
-        )
+        km = haversine(ulat, ulng, r["Latitude"], r["Longitude"])
 
         route_url = (
             f"https://www.google.com/maps/dir/?api=1"
@@ -213,26 +200,12 @@ if run:
             "ADDRESS": r.get("ADDRESS", "")
         })
 
-    # Create dataframe AFTER loop
     out = pd.DataFrame(rows).sort_values("KM")
 
     st.subheader("📊 All Outlet Distances (Nearest → Farthest)")
-
-    # Convert all columns to string
-    out["PINCODE"] = out["PINCODE"].fillna("").astype(str)
-    out["PARTY"] = out["PARTY"].fillna("").astype(str)
-    out["CITY"] = out["CITY"].fillna("").astype(str)
-    out["DISTRICT"] = out["DISTRICT"].fillna("").astype(str)
-    out["STATE"] = out["STATE"].fillna("").astype(str)
-    out["ADDRESS"] = out["ADDRESS"].fillna("").astype(str)
-
-    # Debug
-    st.write(out.dtypes)
-    st.write(out.head())
-
     st.dataframe(
         out,
-        width="stretch",
+        use_container_width=True,
         column_config={
             "VIEW ROUTE": st.column_config.LinkColumn(
                 "View Route",

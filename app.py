@@ -208,6 +208,17 @@ if run:
     out = pd.DataFrame(rows).sort_values("KM")
 
     st.subheader("📊 All Outlet Distances (Nearest → Farthest)")
+    out["PINCODE"] = out["PINCODE"].fillna("").astype(str)
+out["PARTY"] = out["PARTY"].fillna("").astype(str)
+out["CITY"] = out["CITY"].fillna("").astype(str)
+out["DISTRICT"] = out["DISTRICT"].fillna("").astype(str)
+out["STATE"] = out["STATE"].fillna("").astype(str)
+out["ADDRESS"] = out["ADDRESS"].fillna("").astype(str)
+
+# 👇 Temporary debugging
+st.write(out.dtypes)
+st.write(out.head())
+
     st.dataframe(
         out,
         use_container_width=True,

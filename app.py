@@ -90,7 +90,7 @@ location_input = st.text_input(
     placeholder="22.05762,78.93807  OR  https://maps.app.goo.gl/..."
 )
 
-run = st.button("🔍 Calculate Distance", use_container_width=True)
+run = st.button("🔍 Calculate Distance", width="stretch")
 
 # ===============================
 # HELPERS
@@ -219,13 +219,13 @@ out["ADDRESS"] = out["ADDRESS"].fillna("").astype(str)
 st.write(out.dtypes)
 st.write(out.head())
 
-    st.dataframe(
-        out,
-        use_container_width=True,
-        column_config={
-            "VIEW ROUTE": st.column_config.LinkColumn(
-                "View Route",
-                display_text="View Route"
-            )
-        }
-    )
+st.dataframe(
+    out,
+    width="stretch",
+    column_config={
+        "VIEW ROUTE": st.column_config.LinkColumn(
+            "View Route",
+            display_text="View Route"
+        )
+    }
+)

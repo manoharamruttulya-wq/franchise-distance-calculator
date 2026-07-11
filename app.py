@@ -156,6 +156,11 @@ gc = gspread.authorize(creds)
 sheet = gc.open_by_key("1VNVTYE13BEJ2-P0klp5vI7XdPRd0poZujIyNQuk-nms")
 df = pd.DataFrame(sheet.worksheet("Franchise_Summary").get_all_records())
 
+# Below 3 lines added for log only
+st.write(df.shape)
+st.write(df.columns.tolist())
+st.write(df.head())
+
 # ===============================
 # EXTRACT LAT/LONG FROM SHEET
 # ===============================

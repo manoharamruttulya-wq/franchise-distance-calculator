@@ -4,10 +4,11 @@ import pandas as pd
 import gspread
 import re
 import requests
-from oauth2client.service_account import ServiceAccountCredentials
+from google.oauth2.service_account import Credentials
+from google.auth.transport.requests import Request
 
 # ===============================
-# PAGE CONFIG
+# PAGE CONFIG (MUST BE FIRST)
 # ===============================
 st.set_page_config(
     page_title="Manohar Chai – Franchise Distance Tool",
@@ -100,11 +101,12 @@ def extract_lat_lng(text):
         return None, None
 
     # Expand short links
-    if "maps.app.goo.gl" in text:
+    if "maps.app.goo.gl" in text or "goo.gl" in text:
         try:
-            r = requests.get(text, allow_redirects=True, timeout=10)
+            r = requests.get(text, allow_redirects=True, timeout=5)
             text = r.url
-        except:
+        except Exception as e:
+            st.warning(f"⚠️ Link expand nahi hua: {e}")
             return None, None
 
     patterns = [
@@ -123,62 +125,101 @@ def extract_lat_lng(text):
 
 def haversine(lat1, lon1, lat2, lon2):
     R = 6371
-    lat1, lon1, lat2, lon2 = map(math.radians,[lat1,lon1,lat2,lon2])
+    lat1, lon1, lat2, lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
     dlat = lat2 - lat1
     dlon = lon2 - lon1
     a = math.sin(dlat/2)**2 + math.cos(lat1)*math.cos(lat2)*math.sin(dlon/2)**2
     return 2 * R * math.asin(math.sqrt(a))
 
 # ===============================
-# GOOGLE SHEET AUTH
+# GOOGLE SHEET AUTH - CACHED (NEW METHOD)
 # ===============================
-scope = [
-    "https://spreadsheets.google.com/feeds",
-    "https://www.googleapis.com/auth/drive"
-]
+@st.cache_resource(ttl=3600)  # Cache for 1 hour
+def get_gspread_client():
+    """Create and cache gspread client"""
+    try:
+        scope = [
+            "https://spreadsheets.google.com/feeds",
+            "https://www.googleapis.com/auth/drive"
+        ]
 
-creds_dict = {
-    "type": st.secrets["gcp"]["type"],
-    "project_id": st.secrets["gcp"]["project_id"],
-    "private_key_id": st.secrets["gcp"]["private_key_id"],
-    "private_key": st.secrets["gcp"]["private_key"].replace("\\n", "\n"),
-    "client_email": st.secrets["gcp"]["client_email"],
-    "client_id": st.secrets["gcp"]["client_id"],
-    "auth_uri": st.secrets["gcp"]["auth_uri"],
-    "token_uri": st.secrets["gcp"]["token_uri"],
-    "auth_provider_x509_cert_url": st.secrets["gcp"]["auth_provider_x509_cert_url"],
-    "client_x509_cert_url": st.secrets["gcp"]["client_x509_cert_url"],
-}
+        creds_dict = {
+            "type": st.secrets["gcp"]["type"],
+            "project_id": st.secrets["gcp"]["project_id"],
+            "private_key_id": st.secrets["gcp"]["private_key_id"],
+            "private_key": st.secrets["gcp"]["private_key"].replace("\\n", "\n"),
+            "client_email": st.secrets["gcp"]["client_email"],
+            "client_id": st.secrets["gcp"]["client_id"],
+            "auth_uri": st.secrets["gcp"]["auth_uri"],
+            "token_uri": st.secrets["gcp"]["token_uri"],
+            "auth_provider_x509_cert_url": st.secrets["gcp"]["auth_provider_x509_cert_url"],
+            "client_x509_cert_url": st.secrets["gcp"]["client_x509_cert_url"],
+        }
 
-creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-gc = gspread.authorize(creds)
+        # NEW METHOD - Using google.oauth2 instead of oauth2client
+        creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
+        
+        # Refresh token if needed
+        creds.refresh(Request())
+        
+        return gspread.authorize(creds)
+    
+    except Exception as e:
+        st.error(f"❌ Google Auth Error: {e}")
+        return None
 
-sheet = gc.open_by_key("1VNVTYE13BEJ2-P0klp5vI7XdPRd0poZujIyNQuk-nms")
-df = pd.DataFrame(sheet.worksheet("Franchise_Summary").get_all_records())
+@st.cache_data(ttl=1800)  # Cache data for 30 minutes
+def get_franchise_data():
+    """Fetch and cache franchise data from Google Sheet"""
+    try:
+        gc = get_gspread_client()
+        if gc is None:
+            return None
+
+        sheet = gc.open_by_key("1VNVTYE13BEJ2-P0klp5vI7XdPRd0poZujIyNQuk-nms")
+        df = pd.DataFrame(sheet.worksheet("Franchise_Summary").get_all_records())
+
+        # Extract LAT/LONG
+        for col in df.columns:
+            if df[col].astype(str).str.contains(r'^-?\d+\.\d+,\s*-?\d+\.\d+$').any():
+                split = df[col].astype(str).str.split(",", expand=True)
+                df["Latitude"] = pd.to_numeric(split[0], errors="coerce")
+                df["Longitude"] = pd.to_numeric(split[1], errors="coerce")
+                df["Lat_Long"] = df[col]
+                break
+
+        return df
+    
+    except gspread.exceptions.SpreadsheetNotFound:
+        st.error("❌ Google Sheet nahi mili - Check Sheet ID ya Permissions")
+        return None
+    except gspread.exceptions.WorksheetNotFound:
+        st.error("❌ 'Franchise_Summary' worksheet nahi mili")
+        return None
+    except Exception as e:
+        st.error(f"❌ Sheet Error: {e}")
+        return None
 
 # ===============================
-# EXTRACT LAT/LONG FROM SHEET
-# ===============================
-for col in df.columns:
-    if df[col].astype(str).str.contains(r'^-?\d+\.\d+,\s*-?\d+\.\d+$').any():
-        split = df[col].astype(str).str.split(",", expand=True)
-        df["Latitude"] = pd.to_numeric(split[0], errors="coerce")
-        df["Longitude"] = pd.to_numeric(split[1], errors="coerce")
-        df["Lat_Long"] = df[col]
-        break
-
-# ===============================
-# RUN
+# RUN - ONLY WHEN BUTTON CLICKED
 # ===============================
 if run:
+    # Load data ONLY when needed
+    with st.spinner("📊 Loading franchise data..."):
+        df = get_franchise_data()
+    
+    if df is None:
+        st.stop()
+
     ulat, ulng = extract_lat_lng(location_input)
     if ulat is None:
         st.error("❌ Invalid location format")
+        st.info("💡 Correct format: `22.05762,78.93807` ya Google Maps link")
         st.stop()
 
     rows = []
     for _, r in df.iterrows():
-        if pd.isna(r["Latitude"]) or pd.isna(r["Longitude"]):
+        if pd.isna(r.get("Latitude")) or pd.isna(r.get("Longitude")):
             continue
 
         km = haversine(ulat, ulng, r["Latitude"], r["Longitude"])
@@ -200,6 +241,10 @@ if run:
             "ADDRESS": r.get("ADDRESS", "")
         })
 
+    if not rows:
+        st.warning("⚠️ Koi valid franchise location nahi mili sheet mein")
+        st.stop()
+
     out = pd.DataFrame(rows).sort_values("KM")
 
     st.subheader("📊 All Outlet Distances (Nearest → Farthest)")
@@ -213,3 +258,6 @@ if run:
             )
         }
     )
+    
+    # Show count
+    st.success(f"✅ {len(out)} outlets found")

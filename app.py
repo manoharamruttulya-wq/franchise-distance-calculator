@@ -1,6 +1,3 @@
-import os
-os.environ["STREAMLIT_SERVER_HEADLESS"] = "true"
-
 import streamlit as st
 import math
 import pandas as pd
@@ -27,28 +24,23 @@ st.markdown("""
     max-width: 1100px;
     padding-top: 1rem;
 }
-
 .mc-header {
     display: flex;
     align-items: center;
     gap: 14px;
 }
-
 .mc-logo img {
     height: 56px;
 }
-
 .mc-title {
     font-size: 30px;
     font-weight: 900;
 }
 .mc-title .red { color: #b71c1c; }
-
 .mc-sub {
     font-size: 13px;
     color: #666;
 }
-
 .stButton button {
     background-color: #b71c1c;
     color: white;
@@ -58,7 +50,6 @@ st.markdown("""
     font-size: 16px;
 }
 .stButton button:hover { background-color: #8e0000; }
-
 @media (max-width: 768px) {
     .mc-header { flex-direction: column; text-align: center; }
 }
@@ -66,7 +57,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ===============================
-# SPACING + HEADER
+# HEADER
 # ===============================
 st.markdown("<div style='height:76px'></div>", unsafe_allow_html=True)
 
@@ -102,26 +93,22 @@ run = st.button("🔍 Calculate Distance", width="stretch")
 def extract_lat_lng(text):
     if not text:
         return None, None
-
     if "maps.app.goo.gl" in text or "goo.gl" in text:
         try:
             r = requests.get(text, allow_redirects=True, timeout=5)
             text = r.url
         except:
             return None, None
-
     patterns = [
         r'(-?\d+\.\d+),\s*(-?\d+\.\d+)',
         r'@(-?\d+\.\d+),(-?\d+\.\d+)',
         r'[?&]ll=(-?\d+\.\d+),(-?\d+\.\d+)',
         r'!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)'
     ]
-
     for p in patterns:
         m = re.search(p, text)
         if m:
             return float(m.group(1)), float(m.group(2))
-
     return None, None
 
 def haversine(lat1, lon1, lat2, lon2):
@@ -133,7 +120,7 @@ def haversine(lat1, lon1, lat2, lon2):
     return 2 * R * math.asin(math.sqrt(a))
 
 # ===============================
-# GOOGLE SHEET AUTH - CACHED
+# GOOGLE SHEET - CACHED
 # ===============================
 @st.cache_resource(ttl=3600)
 def get_gspread_client():
@@ -142,7 +129,6 @@ def get_gspread_client():
             "https://spreadsheets.google.com/feeds",
             "https://www.googleapis.com/auth/drive"
         ]
-
         creds_dict = {
             "type": st.secrets["gcp"]["type"],
             "project_id": st.secrets["gcp"]["project_id"],
@@ -155,12 +141,8 @@ def get_gspread_client():
             "auth_provider_x509_cert_url": st.secrets["gcp"]["auth_provider_x509_cert_url"],
             "client_x509_cert_url": st.secrets["gcp"]["client_x509_cert_url"],
         }
-
         creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
-        creds.refresh(Request())
-        
         return gspread.authorize(creds)
-    
     except Exception as e:
         st.error(f"❌ Google Auth Error: {e}")
         return None
@@ -171,10 +153,8 @@ def get_franchise_data():
         gc = get_gspread_client()
         if gc is None:
             return None
-
         sheet = gc.open_by_key("1VNVTYE13BEJ2-P0klp5vI7XdPRd0poZujIyNQuk-nms")
         df = pd.DataFrame(sheet.worksheet("Franchise_Summary").get_all_records())
-
         for col in df.columns:
             if df[col].astype(str).str.contains(r'^-?\d+\.\d+,\s*-?\d+\.\d+$').any():
                 split = df[col].astype(str).str.split(",", expand=True)
@@ -182,15 +162,7 @@ def get_franchise_data():
                 df["Longitude"] = pd.to_numeric(split[1], errors="coerce")
                 df["Lat_Long"] = df[col]
                 break
-
         return df
-    
-    except gspread.exceptions.SpreadsheetNotFound:
-        st.error("❌ Google Sheet nahi mili")
-        return None
-    except gspread.exceptions.WorksheetNotFound:
-        st.error("❌ 'Franchise_Summary' worksheet nahi mili")
-        return None
     except Exception as e:
         st.error(f"❌ Sheet Error: {e}")
         return None
@@ -214,15 +186,12 @@ if run:
     for _, r in df.iterrows():
         if pd.isna(r["Latitude"]) or pd.isna(r["Longitude"]):
             continue
-
         km = haversine(ulat, ulng, r["Latitude"], r["Longitude"])
-
         route_url = (
             f"https://www.google.com/maps/dir/?api=1"
             f"&origin={ulat},{ulng}"
             f"&destination={r['Lat_Long']}"
         )
-
         rows.append({
             "VIEW ROUTE": route_url,
             "KM": round(km, 2),

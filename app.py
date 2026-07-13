@@ -94,7 +94,7 @@ location_input = st.text_input(
     placeholder="22.05762,78.93807  OR  https://maps.app.goo.gl/..."
 )
 
-run = st.button("🔍 Calculate Distance", use_container_width=True)
+run = st.button("🔍 Calculate Distance", width="stretch")
 
 # ===============================
 # HELPERS
@@ -226,12 +226,12 @@ if run:
         rows.append({
             "VIEW ROUTE": route_url,
             "KM": round(km, 2),
-            "PARTY": r.get("PARTY NAME", ""),
-            "PINCODE": r.get("PINCODE", ""),
-            "CITY": r.get("CITY", ""),
-            "DISTRICT": r.get("DISTRICT", ""),
-            "STATE": r.get("STATE", ""),
-            "ADDRESS": r.get("ADDRESS", "")
+            "PARTY": str(r.get("PARTY NAME", "")),
+            "PINCODE": str(r.get("PINCODE", "")),
+            "CITY": str(r.get("CITY", "")),
+            "DISTRICT": str(r.get("DISTRICT", "")),
+            "STATE": str(r.get("STATE", "")),
+            "ADDRESS": str(r.get("ADDRESS", ""))
         })
 
     out = pd.DataFrame(rows).sort_values("KM")
@@ -239,7 +239,7 @@ if run:
     st.subheader("📊 All Outlet Distances (Nearest → Farthest)")
     st.dataframe(
         out,
-        use_container_width=True,
+        width="stretch",
         column_config={
             "VIEW ROUTE": st.column_config.LinkColumn(
                 "View Route",

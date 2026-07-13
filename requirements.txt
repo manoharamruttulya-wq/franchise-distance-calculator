@@ -1,6 +1,6 @@
-streamlit==1.38.0
+streamlit
 pandas
 gspread
 google-auth
 requests
-pyarrow==14.0.2
+pyarrow

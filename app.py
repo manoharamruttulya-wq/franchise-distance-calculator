@@ -5,7 +5,6 @@ import gspread
 import re
 import requests
 from google.oauth2.service_account import Credentials
-from google.auth.transport.requests import Request
 
 # ===============================
 # PAGE CONFIG
@@ -205,14 +204,10 @@ if run:
 
     out = pd.DataFrame(rows).sort_values("KM")
 
+    # Links ko clickable banane ke liye Markdown format mein convert kiya
+    out["VIEW ROUTE"] = out["VIEW ROUTE"].apply(lambda x: f'[View Route]({x})')
+
     st.subheader("📊 All Outlet Distances (Nearest → Farthest)")
-    st.dataframe(
-        out,
-        width="stretch",
-        column_config={
-            "VIEW ROUTE": st.column_config.LinkColumn(
-                "View Route",
-                display_text="View Route"
-            )
-        }
-    )
+    
+    # to_markdown() use karne se PyArrow completely bypass hota hai (No Segfault!)
+    st.markdown(out.to_markdown(index=False), unsafe_allow_html=True)

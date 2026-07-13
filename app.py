@@ -8,7 +8,7 @@ from google.oauth2.service_account import Credentials
 from google.auth.transport.requests import Request
 
 # ===============================
-# PAGE CONFIG (MUST BE FIRST)
+# PAGE CONFIG
 # ===============================
 st.set_page_config(
     page_title="Manohar Chai – Franchise Distance Tool",
@@ -100,13 +100,11 @@ def extract_lat_lng(text):
     if not text:
         return None, None
 
-    # Expand short links
     if "maps.app.goo.gl" in text or "goo.gl" in text:
         try:
             r = requests.get(text, allow_redirects=True, timeout=5)
             text = r.url
-        except Exception as e:
-            st.warning(f"⚠️ Link expand nahi hua: {e}")
+        except:
             return None, None
 
     patterns = [
@@ -132,11 +130,10 @@ def haversine(lat1, lon1, lat2, lon2):
     return 2 * R * math.asin(math.sqrt(a))
 
 # ===============================
-# GOOGLE SHEET AUTH - CACHED (NEW METHOD)
+# GOOGLE SHEET AUTH - CACHED
 # ===============================
-@st.cache_resource(ttl=3600)  # Cache for 1 hour
+@st.cache_resource(ttl=3600)
 def get_gspread_client():
-    """Create and cache gspread client"""
     try:
         scope = [
             "https://spreadsheets.google.com/feeds",
@@ -156,10 +153,7 @@ def get_gspread_client():
             "client_x509_cert_url": st.secrets["gcp"]["client_x509_cert_url"],
         }
 
-        # NEW METHOD - Using google.oauth2 instead of oauth2client
         creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
-        
-        # Refresh token if needed
         creds.refresh(Request())
         
         return gspread.authorize(creds)
@@ -168,9 +162,8 @@ def get_gspread_client():
         st.error(f"❌ Google Auth Error: {e}")
         return None
 
-@st.cache_data(ttl=1800)  # Cache data for 30 minutes
+@st.cache_data(ttl=1800)
 def get_franchise_data():
-    """Fetch and cache franchise data from Google Sheet"""
     try:
         gc = get_gspread_client()
         if gc is None:
@@ -179,7 +172,6 @@ def get_franchise_data():
         sheet = gc.open_by_key("1VNVTYE13BEJ2-P0klp5vI7XdPRd0poZujIyNQuk-nms")
         df = pd.DataFrame(sheet.worksheet("Franchise_Summary").get_all_records())
 
-        # Extract LAT/LONG
         for col in df.columns:
             if df[col].astype(str).str.contains(r'^-?\d+\.\d+,\s*-?\d+\.\d+$').any():
                 split = df[col].astype(str).str.split(",", expand=True)
@@ -191,7 +183,7 @@ def get_franchise_data():
         return df
     
     except gspread.exceptions.SpreadsheetNotFound:
-        st.error("❌ Google Sheet nahi mili - Check Sheet ID ya Permissions")
+        st.error("❌ Google Sheet nahi mili")
         return None
     except gspread.exceptions.WorksheetNotFound:
         st.error("❌ 'Franchise_Summary' worksheet nahi mili")
@@ -201,10 +193,9 @@ def get_franchise_data():
         return None
 
 # ===============================
-# RUN - ONLY WHEN BUTTON CLICKED
+# RUN
 # ===============================
 if run:
-    # Load data ONLY when needed
     with st.spinner("📊 Loading franchise data..."):
         df = get_franchise_data()
     
@@ -214,12 +205,11 @@ if run:
     ulat, ulng = extract_lat_lng(location_input)
     if ulat is None:
         st.error("❌ Invalid location format")
-        st.info("💡 Correct format: `22.05762,78.93807` ya Google Maps link")
         st.stop()
 
     rows = []
     for _, r in df.iterrows():
-        if pd.isna(r.get("Latitude")) or pd.isna(r.get("Longitude")):
+        if pd.isna(r["Latitude"]) or pd.isna(r["Longitude"]):
             continue
 
         km = haversine(ulat, ulng, r["Latitude"], r["Longitude"])
@@ -241,10 +231,6 @@ if run:
             "ADDRESS": r.get("ADDRESS", "")
         })
 
-    if not rows:
-        st.warning("⚠️ Koi valid franchise location nahi mili sheet mein")
-        st.stop()
-
     out = pd.DataFrame(rows).sort_values("KM")
 
     st.subheader("📊 All Outlet Distances (Nearest → Farthest)")
@@ -258,6 +244,3 @@ if run:
             )
         }
     )
-    
-    # Show count
-    st.success(f"✅ {len(out)} outlets found")

@@ -1,3 +1,6 @@
+import os
+os.environ["STREAMLIT_SERVER_HEADLESS"] = "true"
+
 import streamlit as st
 import math
 import pandas as pd
